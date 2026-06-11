@@ -12,6 +12,10 @@ cook dinner, sit by the pond, and fall asleep side by side while the sun sets.
 - 🏡 **A house of your own** — bedroom (double bed, closet, lamp) and kitchen (stove, fridge, dinner table for two).
 - 👗 **Closet with outfits** — 6 outfits per character (casual, date night, cozy, beach/sundress, adventurer, formal/princess).
 - 🌍 **Open world** — forest, pond with a bench, picnic blanket, a heart-shaped flower garden, stone path, drifting clouds.
+- 🏙️ **A city to roam** — road grid with a heart-fountain plaza, café (with terrace seating), bakery, flower shop, cinema, wedding chapel, restaurant, bookstore and pastel townhouses; street lamps and shop windows glow at night.
+- 🚗 **Mock traffic** — blocky cars loop the ring road in both lanes, headlights on after dark.
+- 🤫 **Secret places** — three hidden spots are tucked around the edges of the map (and deliberately left off the minimap). Explore together.
+- 🗺️ **Minimap** — bottom-left corner, north-up view of the whole world: roads, buildings, water, home — plus a heading arrow for you and a pulsing ❤ pin for your partner.
 - 💬 **Chat & emotes** — speech bubbles, ❤️ / 👋 / 😘 emotes, and floating hearts when you stand close together.
 
 ## Run it

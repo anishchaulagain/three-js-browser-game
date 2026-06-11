@@ -1,14 +1,18 @@
 /**
- * World composition root — builds sky + house + nature and exposes
- * one shared context (colliders, camera blockers, interactables).
+ * World composition root — builds sky + house + nature + city + secrets +
+ * traffic, sharing one context (colliders, camera blockers, interactables,
+ * minimap features).
  *
- * To add a new area (garden shed, beach, …): create a module like house.js,
- * give it the ctx, and call its update() below if it needs per-frame work.
+ * To add a new area: create a module like city.js, give it the ctx, and call
+ * its update() below if it needs per-frame work.
  */
 import { mulberry32, WORLD_SEED } from './rng.js';
 import { createSky } from './sky.js';
 import { buildHouse } from './house.js';
 import { buildNature } from './nature.js';
+import { buildCity } from './city.js';
+import { buildSecrets } from './secrets.js';
+import { createTraffic } from './traffic.js';
 
 export function createWorld(scene) {
   const rng = mulberry32(WORLD_SEED);
@@ -22,6 +26,8 @@ export function createWorld(scene) {
     cameraBlockers: [],
     /** {x,z,radius,label,type,data} — things the player can press E on */
     interactables: [],
+    /** shapes the minimap draws: rect / circle / emoji (secret places stay off it!) */
+    mapFeatures: [],
     addBoxCollider(cx, cz, w, d) {
       ctx.colliders.push({ type: 'box', minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });
     },
@@ -30,12 +36,18 @@ export function createWorld(scene) {
   const sky = createSky(scene, rng);
   const house = buildHouse(ctx);
   const nature = buildNature(ctx);
+  const city = buildCity(ctx);
+  const secrets = buildSecrets(ctx);
+  const traffic = createTraffic(scene);
 
   /** Advance the whole environment; returns night ∈ [0,1]. */
   function update(t, dt, playerPos) {
     const night = sky.update(t, dt, playerPos);
     house.update(night, playerPos);
     nature.update(night, dt);
+    city.update(night);
+    secrets.update(night);
+    traffic.update(dt, night);
     return night;
   }
 
@@ -43,6 +55,7 @@ export function createWorld(scene) {
     colliders: ctx.colliders,
     cameraBlockers: ctx.cameraBlockers,
     interactables: ctx.interactables,
+    mapFeatures: ctx.mapFeatures,
     update,
     isInsideHouse: house.isInsideHouse,
   };

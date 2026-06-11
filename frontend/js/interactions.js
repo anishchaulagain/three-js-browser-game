@@ -43,4 +43,15 @@ export const interactionHandlers = {
     game.net.sendEmote(snack);
     game.ui.toast(`You grabbed a snack ${snack}`, 2000);
   },
+
+  /** generic little moment: emote + toast, driven entirely by interactable data
+      (fountain wishes, cinema, bakery, chapel bell, secret places, …) */
+  moment(game, it) {
+    const d = it.data || {};
+    if (d.emoji) {
+      game.selfAvatar.emote(d.emoji);
+      game.net.sendEmote(d.emoji);
+    }
+    if (d.toast) game.ui.toast(d.toast, 2800);
+  },
 };

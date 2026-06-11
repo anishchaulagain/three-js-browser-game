@@ -11,7 +11,7 @@ const PICNIC = { x: -15, z: 10 };
 const GARDEN = { x: -16, z: 17 };
 
 export function buildNature(ctx) {
-  const { scene, rng, colliders, interactables, addBoxCollider } = ctx;
+  const { scene, rng, colliders, interactables, addBoxCollider, mapFeatures } = ctx;
 
   /* ---- ground + horizon hills ---- */
   const ground = new THREE.Mesh(new THREE.CircleGeometry(220, 48), mat(0x57a55a));
@@ -48,6 +48,7 @@ export function buildNature(ctx) {
     water.rotation.x = -Math.PI / 2;
     water.position.set(POND.x, 0.16, POND.z);
     scene.add(water);
+    mapFeatures.push({ type: 'circle', x: POND.x, z: POND.z, r: POND.r, color: '#4aa3df' });
     for (let i = 0; i < 14; i++) {
       const a = (i / 14) * Math.PI * 2;
       const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.3 + rng() * 0.3), mat(0x8d8d8d));
@@ -121,10 +122,14 @@ export function buildNature(ctx) {
   function spotIsClear(x, z) {
     if (x > H.minX - 4 && x < H.maxX + 4 && z > H.minZ - 5 && z < H.maxZ + 6) return false; // house + yard
     if (Math.hypot(x - POND.x, z - POND.z) < POND.r + 3) return false;
-    if (Math.abs(x) < 3 && z > -21 && z < 4) return false;                  // path
+    if (Math.abs(x) < 6 && z > -21 && z < 120) return false;                // path + road to the city
     if (Math.hypot(x - PICNIC.x, z - PICNIC.z) < 6) return false;
     if (Math.hypot(x - GARDEN.x, z - GARDEN.z) < 6) return false;
     if (Math.hypot(x, z) < 5) return false;                                 // spawn
+    if (x > -82 && x < 82 && z > 26 && z < 118) return false;               // the city
+    if (Math.hypot(x + 130, z + 110) < 18) return false;                    // secret grotto
+    if (Math.hypot(x - 142, z + 62) < 14) return false;                     // lovers' lookout
+    if (Math.hypot(x - 92, z - 128) < 16) return false;                     // secret rose garden
     return true;
   }
 
@@ -166,6 +171,7 @@ export function buildNature(ctx) {
     g.position.set(x, 0, z);
     scene.add(g);
     colliders.push({ type: 'circle', x, z, r: 0.45 * s });
+    mapFeatures.push({ type: 'circle', x, z, r: 2.2, color: '#2e6b3e' });
     placed++;
   }
 

@@ -9,8 +9,10 @@ import { mat, box } from './helpers.js';
 export const HOUSE_BOUNDS = { minX: -7, maxX: 7, minZ: -30, maxZ: -20, wallH: 3.2, t: 0.3 };
 
 export function buildHouse(ctx) {
-  const { scene, cameraBlockers, interactables, addBoxCollider } = ctx;
+  const { scene, cameraBlockers, interactables, addBoxCollider, mapFeatures } = ctx;
   const H = HOUSE_BOUNDS;
+  mapFeatures.push({ type: 'rect', x: 0, z: -25, w: 15, d: 11, color: '#c14953' });
+  mapFeatures.push({ type: 'emoji', x: 0, z: -25, text: '🏠', size: 11 });
 
   const wallMat = mat(0xf5e6cf);
   const wallInMat = mat(0xefdcc3);

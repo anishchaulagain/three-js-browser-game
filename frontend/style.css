@@ -141,8 +141,16 @@ canvas { display: block; }
 }
 .help-title { font-weight: 700; color: #ffd9ec; margin-bottom: 2px; }
 
+#minimap {
+  position: absolute; bottom: 14px; left: 14px;
+  border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  opacity: 0.92;
+}
+
 #chat-log {
-  position: absolute; bottom: 64px; left: 14px;
+  position: absolute; bottom: 64px; left: 218px;
   width: 300px; max-height: 180px; overflow: hidden;
   display: flex; flex-direction: column; justify-content: flex-end;
   font-size: 13px; gap: 4px;
@@ -156,7 +164,7 @@ canvas { display: block; }
 .chat-msg b { color: #ff9ecb; }
 
 #chat-input {
-  position: absolute; bottom: 18px; left: 14px;
+  position: absolute; bottom: 18px; left: 218px;
   width: 300px; padding: 10px 14px;
   border: 2px solid rgba(255, 158, 203, .6); border-radius: 12px;
   background: rgba(20, 16, 36, 0.8); color: #fff;

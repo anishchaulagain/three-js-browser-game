@@ -10,6 +10,7 @@ import { PlayerController } from './controls.js';
 import { Network } from './network.js';
 import { UI } from './ui.js';
 import { HeartEffects } from './effects.js';
+import { Minimap } from './minimap.js';
 import { interactionHandlers } from './interactions.js';
 import { SPAWNS, STATE_SEND_MS, EMOTE_KEYS, HEART_DISTANCE, KISS_DISTANCE } from './config.js';
 
@@ -34,6 +35,7 @@ export class Game {
     this.ui = new UI();
     this.net = new Network();
     this.hearts = new HeartEffects(this.scene);
+    this.minimap = new Minimap(document.getElementById('minimap'), this.world.mapFeatures);
     this.controller = new PlayerController(this.camera, this.renderer.domElement, {
       colliders: this.world.colliders,
       cameraBlockers: this.world.cameraBlockers,
@@ -304,6 +306,12 @@ export class Game {
 
     this.world.update(t, dt, this.controller.pos);
     this._updateClockUI(t);
+
+    this.minimap.update(dt,
+      { x: state.x, z: state.z, ry: state.ry, role: this.self.role },
+      this.partner
+        ? { x: this.partner.avatar.group.position.x, z: this.partner.avatar.group.position.z, role: this.partner.role }
+        : null);
 
     this.renderer.render(this.scene, this.camera);
   }
