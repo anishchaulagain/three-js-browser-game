@@ -57,9 +57,12 @@ export function buildHouse(ctx) {
   }
 
   // roof: 4-sided pyramid trick + chimney
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(10.2, 3.4, 4), mat(0xc14953));
-  roof.rotation.y = Math.PI / 4;
-  roof.scale.set(1.05, 1, 0.78); // edge apothem ≈ 7.6 × 5.6 — covers the 14×10 footprint with a small eave
+  // bake the 45° twist into the geometry so the edges are axis-aligned BEFORE
+  // the non-uniform scale — mesh.rotation + scale would skew the footprint
+  const roofGeo = new THREE.ConeGeometry(10.2, 3.4, 4);
+  roofGeo.rotateY(Math.PI / 4);
+  const roof = new THREE.Mesh(roofGeo, mat(0xc14953));
+  roof.scale.set(1.05, 1, 0.78); // half-extents ≈ 7.6 × 5.6 — covers the 14×10 footprint with a small eave
   roof.position.set(0, H.wallH + 1.7, -25);
   roof.castShadow = true;
   scene.add(roof);
@@ -340,19 +343,23 @@ export function buildHouse(ctx) {
     return p.x > H.minX && p.x < H.maxX && p.z > H.minZ && p.z < H.maxZ;
   }
 
-  /** night ∈ [0,1] drives the indoor lighting; roof hides when someone is inside */
+  /**
+   * night ∈ [0,1] drives the indoor lighting. The roof always stays —
+   * indoors the third-person camera collides with the walls/roof and pulls
+   * in close (Roblox-style) instead of the building being hidden.
+   */
   function update(night, playerPos) {
-    const lampOn = Math.max(0, (night - 0.25) / 0.75);
+    // lamps stay softly on while someone is home, and ramp up at night,
+    // so the interior is never pitch dark under the roof
+    const inside = isInsideHouse(playerPos) ? 0.35 : 0;
+    const lampOn = Math.max(inside, (night - 0.25) / 0.75);
     bedroomLamp.intensity = lampOn * 14;
     kitchenLamp.intensity = lampOn * 18;
-    porchLight.intensity = lampOn * 14;
+    porchLight.intensity = Math.max(0, (night - 0.25) / 0.75) * 14;
     lampShadeMat.emissiveIntensity = lampOn * 1.4;
     kitchenShadeMat.emissiveIntensity = lampOn * 1.4;
-    porchLamp.material.emissiveIntensity = lampOn * 1.6;
+    porchLamp.material.emissiveIntensity = Math.max(0, (night - 0.25) / 0.75) * 1.6;
     for (const wm of windowMats) wm.emissiveIntensity = lampOn * 0.9;
-
-    roof.visible = !isInsideHouse(playerPos);
-    chimney.visible = roof.visible;
   }
 
   return { bounds: H, isInsideHouse, update };

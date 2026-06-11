@@ -173,15 +173,23 @@ export class PlayerController {
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     const offset = new THREE.Vector3(Math.sin(this.yaw) * cp, sp, Math.cos(this.yaw) * cp);
 
-    // keep the camera out of walls
+    // keep the camera out of walls and the roof (raycast hits both faces so
+    // it also works from inside the house, where the camera pulls in close)
     let dist = this.dist;
     this._ray.set(target, offset.clone().normalize());
     this._ray.far = this.dist;
-    const hits = this._ray.intersectObjects(this.blockers.filter((b) => b.visible), false);
+    const prevSides = [];
+    const solid = this.blockers.filter((b) => b.visible);
+    for (const b of solid) { prevSides.push(b.material.side); b.material.side = THREE.DoubleSide; }
+    const hits = this._ray.intersectObjects(solid, false);
+    solid.forEach((b, i) => { b.material.side = prevSides[i]; });
     if (hits.length) dist = Math.max(1.2, hits[0].distance - 0.3);
 
     const desired = target.clone().addScaledVector(offset, dist);
+    // never sink below the ground plane — the world isn't visible from underneath
+    desired.y = Math.max(desired.y, 0.3);
     this._camPos.lerp(desired, Math.min(1, dt * 10));
+    this._camPos.y = Math.max(this._camPos.y, 0.3);
     this.camera.position.copy(this._camPos);
     this.camera.lookAt(target);
   }
