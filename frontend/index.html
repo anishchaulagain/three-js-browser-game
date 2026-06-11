@@ -33,15 +33,25 @@
 
     <canvas id="minimap" width="190" height="190"></canvas>
     <div id="chat-log"></div>
-    <input id="chat-input" class="hidden" maxlength="120" autocomplete="off"
-           placeholder="Say something sweet… (Enter to send, Esc to close)" />
+    <div id="chat-popup" class="hidden">
+      <div class="chat-title">💬 Say something sweet</div>
+      <input id="chat-input" maxlength="120" autocomplete="off"
+             placeholder="Type a message…" />
+      <div id="chat-quick">
+        <button class="chat-chip" data-msg="I love you ❤️">❤️ I love you</button>
+        <button class="chat-chip" data-msg="Miss you 😘">😘 Miss you</button>
+        <button class="chat-chip" data-msg="Come here! 🏃">🏃 Come here!</button>
+        <button class="chat-chip" data-msg="You're cute 🌸">🌸 You're cute</button>
+      </div>
+      <div class="chat-hint">Enter — send &nbsp;·&nbsp; Esc — close</div>
+    </div>
     <input id="cheat-input" class="hidden" maxlength="24" autocomplete="off"
            placeholder="enter cheat code…" />
 
     <div id="help">
       <div class="help-title">Controls ⌨️</div>
       <div>WASD — move &nbsp;·&nbsp; Shift — run &nbsp;·&nbsp; Space — jump</div>
-      <div>E — interact / drive 🚗 &nbsp;·&nbsp; F — give a flower &nbsp;·&nbsp; Enter — chat</div>
+      <div>E — interact / drive 🚗 &nbsp;·&nbsp; F — give a flower &nbsp;·&nbsp; T — chat 💬</div>
       <div>H — ❤️ &nbsp;·&nbsp; G — 👋 &nbsp;·&nbsp; K — 😘</div>
       <div>Click world — mouse look &nbsp;·&nbsp; Esc — show cursor</div>
       <div>V — first person &nbsp;·&nbsp; Scroll — zoom (all the way in = 1st person)</div>

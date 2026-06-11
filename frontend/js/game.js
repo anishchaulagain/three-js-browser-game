@@ -265,7 +265,7 @@ export class Game {
       if (e.code === 'KeyE') this._interact();
       else if (e.code === 'KeyF') this._giveFlower();
       else if (e.code === 'Backquote') { e.preventDefault(); this.ui.openCheat(); }
-      else if (e.code === 'Enter') { e.preventDefault(); this.ui.openChat(); }
+      else if (e.code === 'Enter' || e.code === 'KeyT') { e.preventDefault(); this.ui.openChat(); }
       else if (e.code === 'Escape' && this.ui.closetOpen) this.ui.closeCloset();
       else if (EMOTE_KEYS[e.code]) {
         const emoji = EMOTE_KEYS[e.code];

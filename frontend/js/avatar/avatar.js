@@ -175,7 +175,7 @@ export class Avatar {
     this.bubbleAnchor.clear();
     if (this._bubbleTimer) clearTimeout(this._bubbleTimer);
     this.bubbleAnchor.add(bubbleSprite(text));
-    this._bubbleTimer = setTimeout(() => this.bubbleAnchor.clear(), 6000);
+    this._bubbleTimer = setTimeout(() => this.bubbleAnchor.clear(), 7500);
   }
 
   emote(emoji) {

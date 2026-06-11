@@ -197,22 +197,29 @@ export class UI {
         this.closeChat();
       }
     });
+    // quick-send chips
+    document.querySelectorAll('.chat-chip').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        onSend(btn.dataset.msg);
+        this.closeChat();
+      });
+    });
   }
 
   openChat() {
     this._chatVisible = true;
     if (document.exitPointerLock) document.exitPointerLock(); // free the cursor while typing
+    $('chat-popup').classList.remove('hidden');
     const input = $('chat-input');
-    input.classList.remove('hidden');
     input.value = '';
     input.focus();
   }
 
   closeChat() {
     this._chatVisible = false;
+    $('chat-popup').classList.add('hidden');
     const input = $('chat-input');
     input.value = '';
-    input.classList.add('hidden');
     input.blur();
   }
 
