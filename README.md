@@ -35,7 +35,7 @@ same network using `http://<your-ip>:3000`). One of you picks *Him*, the other *
 | E | Interact (closet, bed, chairs, stove, fridge…) |
 | Enter | Chat |
 | H / G / K | ❤️ / 👋 / 😘 emotes |
-| Mouse drag | Look around |
+| Mouse | Look around — click the world once to lock the cursor (Esc to release); dragging works too |
 | Scroll | Zoom camera |
 
 ## Project layout

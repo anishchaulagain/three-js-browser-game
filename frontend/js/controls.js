@@ -8,7 +8,7 @@ const JUMP_VELOCITY = 8;
 const WORLD_RADIUS = 180;
 
 export class PlayerController {
-  constructor(camera, dom, { colliders, cameraBlockers, isTyping }) {
+  constructor(camera, dom, { colliders, cameraBlockers, isTyping, lockAllowed }) {
     this.camera = camera;
     this.colliders = colliders;
     this.blockers = cameraBlockers;
@@ -38,14 +38,29 @@ export class PlayerController {
     window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
     window.addEventListener('blur', () => { this.keys = {}; });
 
+    // --- free look via pointer lock: click the world once, then just move
+    // the mouse; Esc (or opening any UI) releases the cursor ---
+    this.lockAllowed = lockAllowed || (() => true);
+    dom.addEventListener('click', () => {
+      if (!this.enabled || this.isTyping() || !this.lockAllowed()) return;
+      if (document.pointerLockElement !== dom) {
+        try { dom.requestPointerLock(); } catch { /* not available — drag still works */ }
+      }
+    });
+
+    // drag-look stays as a fallback when the pointer isn't locked
     let dragging = false, lx = 0, ly = 0;
     dom.addEventListener('mousedown', (e) => { dragging = true; lx = e.clientX; ly = e.clientY; });
     window.addEventListener('mouseup', () => { dragging = false; });
     window.addEventListener('mousemove', (e) => {
-      if (!dragging) return;
-      this.yaw -= (e.clientX - lx) * 0.0055;
-      this.pitch = THREE.MathUtils.clamp(this.pitch + (e.clientY - ly) * 0.0045, -0.5, 1.25);
-      lx = e.clientX; ly = e.clientY;
+      if (document.pointerLockElement === dom) {
+        this.yaw -= e.movementX * 0.0032;
+        this.pitch = THREE.MathUtils.clamp(this.pitch + e.movementY * 0.0028, -0.5, 1.25);
+      } else if (dragging) {
+        this.yaw -= (e.clientX - lx) * 0.0055;
+        this.pitch = THREE.MathUtils.clamp(this.pitch + (e.clientY - ly) * 0.0045, -0.5, 1.25);
+        lx = e.clientX; ly = e.clientY;
+      }
     });
     dom.addEventListener('wheel', (e) => {
       this.dist = THREE.MathUtils.clamp(this.dist + e.deltaY * 0.004, 2.5, 12);

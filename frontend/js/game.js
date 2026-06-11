@@ -38,6 +38,7 @@ export class Game {
       colliders: this.world.colliders,
       cameraBlockers: this.world.cameraBlockers,
       isTyping: () => this.ui.isTyping(),
+      lockAllowed: () => !this.ui.closetOpen,
     });
 
     /* state */

@@ -107,6 +107,7 @@ export class UI {
   /* ===== closet ===== */
   openCloset(outfits, current, onPick) {
     this.closetOpen = true;
+    if (document.exitPointerLock) document.exitPointerLock(); // free the cursor for the UI
     const grid = $('closet-grid');
     grid.innerHTML = '';
     outfits.forEach((o, i) => {
@@ -154,6 +155,7 @@ export class UI {
 
   openChat() {
     this._chatVisible = true;
+    if (document.exitPointerLock) document.exitPointerLock(); // free the cursor while typing
     const input = $('chat-input');
     input.classList.remove('hidden');
     input.value = '';
