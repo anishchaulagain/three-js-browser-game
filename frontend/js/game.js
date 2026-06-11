@@ -13,6 +13,7 @@ import { HeartEffects } from './effects.js';
 import { Minimap } from './minimap.js';
 import { interactionHandlers } from './interactions.js';
 import { CHEATS } from './cheats.js';
+import { SecureChannel } from './crypto.js';
 import {
   SPAWNS, STATE_SEND_MS, CAR_SEND_MS, EMOTE_KEYS, HEART_DISTANCE, KISS_DISTANCE,
   FLOWERS, POCKET_MAX, GIVE_DISTANCE,
@@ -39,6 +40,7 @@ export class Game {
     this.ui = new UI();
     this.net = new Network();
     this.hearts = new HeartEffects(this.scene);
+    this.secure = new SecureChannel(); // end-to-end chat encryption
     this.minimap = new Minimap(document.getElementById('minimap'), this.world.mapFeatures);
     this.controller = new PlayerController(this.camera, this.renderer.domElement, {
       colliders: this.world.colliders,
@@ -140,7 +142,7 @@ export class Game {
     net.onWelcome = (d) => {
       ui.showSelect(d.taken, (role, name) => {
         const sp = SPAWNS[role];
-        net.join(role, name, sp.x, sp.z);
+        net.join(role, name, sp.x, sp.z, this.secure.publicKeyB64);
       });
     };
 
@@ -161,7 +163,7 @@ export class Game {
 
       this.joined = true;
       ui.hideSelect();
-      ui.setupChat((text) => net.sendChat(text));
+      ui.setupChat((text) => this._sendChat(text));
       ui.setupCheat((code) => {
         const cheat = CHEATS[code];
         if (cheat) cheat(this);
@@ -225,9 +227,15 @@ export class Game {
     };
 
     net.onChat = (d) => {
-      ui.addChatMessage(d.name, d.text);
-      if (this.self && d.id === net.socket.id) this.selfAvatar.say(d.text);
-      else if (this.partner && d.id === this.partner.id) this.partner.avatar.say(d.text);
+      // only the partner's (encrypted) messages arrive — our own show locally at send time
+      if (!this.partner || d.id !== this.partner.id) return;
+      const text = this.secure.decrypt(d.e);
+      if (text === null) {
+        ui.addChatMessage(d.name, '🔒 (message could not be decrypted)');
+        return;
+      }
+      ui.addChatMessage(d.name, text);
+      this.partner.avatar.say(text);
     };
 
     net.onLeft = (d) => {
@@ -239,6 +247,15 @@ export class Game {
         ui.toast(`💔 ${d.name} left the world`, 3000);
       }
     };
+  }
+
+  _sendChat(text) {
+    // always show our own message locally, then send only ciphertext
+    this.ui.addChatMessage(this.self.name, text);
+    this.selfAvatar.say(text);
+    if (this.partner && this.secure.ready) {
+      this.net.sendChat(this.secure.encrypt(text));
+    }
   }
 
   _addPartner(p) {
@@ -255,6 +272,10 @@ export class Game {
     };
     this.partnerCarSeat = p.carSeat || null;
     this.ui.setPartnerStatus(`❤️ ${p.name} is here`);
+    // establish the end-to-end encrypted chat channel
+    if (p.pubkey && this.secure.setPartnerKey(p.pubkey)) {
+      this.ui.toast(`🔒 Private chat secured — your love seal: ${this.secure.fingerprint}`, 4200);
+    }
   }
 
   /* ============ input ============ */
