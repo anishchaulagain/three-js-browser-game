@@ -14,6 +14,8 @@ export class Network {
     this.onOutfit = null;
     this.onEmote = null;
     this.onGift = null;
+    this.onCarState = null;
+    this.onCarSeat = null;
     this.onChat = null;
     this.onLeft = null;
     this.onFull = null;
@@ -32,6 +34,8 @@ export class Network {
     this.socket.on('outfit', (d) => this.onOutfit && this.onOutfit(d));
     this.socket.on('emote', (d) => this.onEmote && this.onEmote(d));
     this.socket.on('gift', (d) => this.onGift && this.onGift(d));
+    this.socket.on('car_state', (d) => this.onCarState && this.onCarState(d));
+    this.socket.on('car_seat', (d) => this.onCarSeat && this.onCarSeat(d));
     this.socket.on('chat', (d) => this.onChat && this.onChat(d));
     this.socket.on('player_left', (d) => this.onLeft && this.onLeft(d));
     this.socket.on('world_full', () => this.onFull && this.onFull());
@@ -64,5 +68,7 @@ export class Network {
   sendOutfit(i) { this.socket.emit('outfit', i); }
   sendEmote(e) { this.socket.emit('emote', e); }
   sendGift(flower) { this.socket.emit('gift', flower); }
+  sendCarState(s) { this.socket.emit('car_state', s); }
+  sendCarSeat(seat) { this.socket.emit('car_seat', seat); }
   sendChat(t) { this.socket.emit('chat', t); }
 }

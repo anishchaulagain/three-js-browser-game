@@ -21,6 +21,7 @@ export class PlayerController {
     this.anim = 'idle';
     this.speed = 0;
     this.seated = null; // {exit:{x,z}, anim}
+    this.vehicle = null; // {car, seat} — riding the couple car
     this.enabled = false;
 
     this.yaw = Math.PI;
@@ -109,6 +110,19 @@ export class PlayerController {
   }
 
   update(dt) {
+    if (this.enabled && this.vehicle) {
+      // riding the car: position comes from the seat; WASD belongs to driving
+      const sw = this.vehicle.car.seatWorld(this.vehicle.seat);
+      this.pos.copy(sw);
+      this.ry = this.vehicle.car.state.ry;
+      this.anim = 'sit';
+      this.speed = 0;
+      this.vy = 0;
+      this.grounded = true;
+      this._updateCamera(dt);
+      return this.state();
+    }
+
     if (this.enabled) {
       const { f, r } = this._moveInput();
 

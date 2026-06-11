@@ -14,6 +14,7 @@ cook dinner, sit by the pond, and fall asleep side by side while the sun sets.
 - 🌍 **Open world** — forest, pond with a bench, picnic blanket, a heart-shaped flower garden, stone path, drifting clouds.
 - 🏙️ **A city to roam** — road grid with a heart-fountain plaza, café (with terrace seating), bakery, flower shop, cinema, wedding chapel, restaurant, bookstore and pastel townhouses; street lamps and shop windows glow at night.
 - 🚗 **Mock traffic** — blocky cars loop the ring road in both lanes, headlights on after dark.
+- 🚙 **Your own car** — a rose convertible parked beside the house. First one in drives (WASD + Space brake), the other rides shotgun. Fully synced between both players, it respects world collisions, its headlights come on at night, it shows as 🚗 on the minimap — and it stays wherever you park it, even for a partner who joins later.
 - 🤫 **Secret places** — three hidden spots are tucked around the edges of the map (and deliberately left off the minimap). Explore together.
 - 🗺️ **Minimap** — bottom-left corner, north-up view of the whole world: roads, buildings, water, home — plus a heading arrow for you and a pulsing ❤ pin for your partner.
 - 💬 **Chat & emotes** — speech bubbles, ❤️ / 👋 / 😘 emotes, and floating hearts when you stand close together.
@@ -96,6 +97,16 @@ frontend/
 - **New interactions** — push an interactable from a world module, then add a
   same-named handler in `frontend/js/interactions.js`.
 - **New areas** — create a module like `world/house.js` and call it from `world/index.js`.
+
+## Cheats 🤫
+
+Press **`** (backquote) in-game to open the cheat console:
+
+| Code | Effect |
+|---|---|
+| `beast` | Summons the couple car right in front of you, ready to drive |
+
+Add your own in `frontend/js/cheats.js` — one entry per code.
 
 ## Tests
 

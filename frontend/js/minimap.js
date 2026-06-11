@@ -51,15 +51,22 @@ export class Minimap {
   }
 
   /**
-   * self: {x, z, ry, role} — partner: {x, z, role} | null
+   * self: {x, z, ry, role} — partner: {x, z, role} | null — car: {x, z} | null
    */
-  update(dt, self, partner) {
+  update(dt, self, partner, car) {
     this.time += dt;
     const g = this.ctx;
     g.clearRect(0, 0, this.size, this.size);
     g.drawImage(this.staticLayer, 0, 0);
 
     const colorOf = (role) => (role === 'female' ? '#ff7eb6' : '#6aa5ff');
+
+    if (car) {
+      g.font = '10px "Segoe UI Emoji", sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText('🚗', this._mx(car.x), this._mz(car.z));
+    }
 
     // partner pin: pulsing ring + heart so they're easy to find
     if (partner) {

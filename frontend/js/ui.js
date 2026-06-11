@@ -150,6 +150,39 @@ export class UI {
     $('closet-modal').classList.add('hidden');
   }
 
+  /* ===== cheat console ===== */
+  setupCheat(onCode) {
+    const input = $('cheat-input');
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        const code = input.value.trim().toLowerCase();
+        this.closeCheat();
+        if (code) onCode(code);
+      } else if (e.key === 'Escape' || e.key === '`') {
+        e.preventDefault();
+        this.closeCheat();
+      }
+    });
+  }
+
+  openCheat() {
+    this._cheatVisible = true;
+    if (document.exitPointerLock) document.exitPointerLock();
+    const input = $('cheat-input');
+    input.classList.remove('hidden');
+    input.value = '';
+    input.focus();
+  }
+
+  closeCheat() {
+    this._cheatVisible = false;
+    const input = $('cheat-input');
+    input.value = '';
+    input.classList.add('hidden');
+    input.blur();
+  }
+
   /* ===== chat ===== */
   setupChat(onSend) {
     this._onChatSend = onSend;
@@ -198,6 +231,7 @@ export class UI {
 
   isTyping() {
     const el = document.activeElement;
-    return this._chatVisible || (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'));
+    return this._chatVisible || this._cheatVisible ||
+      (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA'));
   }
 }

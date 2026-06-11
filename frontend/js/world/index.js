@@ -14,6 +14,7 @@ import { buildCity } from './city.js';
 import { buildSecrets } from './secrets.js';
 import { buildGarden } from './garden.js';
 import { createTraffic } from './traffic.js';
+import { createCoupleCar } from './car.js';
 
 export function createWorld(scene) {
   const rng = mulberry32(WORLD_SEED);
@@ -41,6 +42,7 @@ export function createWorld(scene) {
   const secrets = buildSecrets(ctx);
   const garden = buildGarden(ctx);
   const traffic = createTraffic(scene);
+  const car = createCoupleCar(ctx); // updated by Game each frame (driver input / net sync)
 
   /** Advance the whole environment; returns night ∈ [0,1]. */
   function update(t, dt, playerPos) {
@@ -59,6 +61,7 @@ export function createWorld(scene) {
     cameraBlockers: ctx.cameraBlockers,
     interactables: ctx.interactables,
     mapFeatures: ctx.mapFeatures,
+    car,
     update,
     isInsideHouse: house.isInsideHouse,
   };

@@ -7,6 +7,8 @@ export const SPAWNS = {
 
 /** how often (ms) to send our state to the server, at most */
 export const STATE_SEND_MS = 60;
+/** the car moves fast — sync it a bit more often */
+export const CAR_SEND_MS = 40;
 
 /** keyboard emotes — add more here and they just work */
 export const EMOTE_KEYS = {

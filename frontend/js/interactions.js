@@ -44,6 +44,11 @@ export const interactionHandlers = {
     game.ui.toast(`You grabbed a snack ${snack}`, 2000);
   },
 
+  /** hop into the couple car (first one in drives) */
+  car(game) {
+    game.enterCar();
+  },
+
   /** pluck a flower from the picking garden into your pocket */
   pick(game, it) {
     const { plant } = it.data;

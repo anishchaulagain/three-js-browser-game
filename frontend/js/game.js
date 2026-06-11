@@ -12,8 +12,9 @@ import { UI } from './ui.js';
 import { HeartEffects } from './effects.js';
 import { Minimap } from './minimap.js';
 import { interactionHandlers } from './interactions.js';
+import { CHEATS } from './cheats.js';
 import {
-  SPAWNS, STATE_SEND_MS, EMOTE_KEYS, HEART_DISTANCE, KISS_DISTANCE,
+  SPAWNS, STATE_SEND_MS, CAR_SEND_MS, EMOTE_KEYS, HEART_DISTANCE, KISS_DISTANCE,
   FLOWERS, POCKET_MAX, GIVE_DISTANCE,
 } from './config.js';
 
@@ -49,6 +50,10 @@ export class Game {
     /* state */
     this.joined = false;
     this.pocket = [];          // flower keys you're carrying (see config.FLOWERS)
+    this.carSeat = null;       // null | 'driver' | 'passenger'
+    this.partnerCarSeat = null;
+    this._lastCarSent = 0;
+    this._night = 0;
     this.self = null;          // {id, role, name, outfit}
     this.selfAvatar = null;
     this.partner = null;       // {id, role, name, outfit, avatar, target, anim, speed}
@@ -86,6 +91,27 @@ export class Game {
     const counts = {};
     for (const key of this.pocket) counts[key] = (counts[key] || 0) + 1;
     return Object.entries(counts).map(([key, count]) => ({ emoji: FLOWERS[key].emoji, count }));
+  }
+
+  /* ============ couple car ============ */
+  enterCar() {
+    const seat = this.partnerCarSeat === 'driver' ? 'passenger' : 'driver';
+    this.carSeat = seat;
+    this.controller.seated = null;
+    this.controller.vehicle = { car: this.world.car, seat };
+    this.net.sendCarSeat(seat);
+    this.ui.toast(seat === 'driver'
+      ? "You're driving! WASD to cruise, Space to brake 🚗"
+      : 'Enjoy the ride 💕', 2800);
+  }
+
+  exitCar() {
+    const e = this.world.car.exitWorld(this.carSeat);
+    this.controller.vehicle = null;
+    this.controller.pos.set(e.x, 0, e.z);
+    this.controller.anim = 'idle';
+    this.carSeat = null;
+    this.net.sendCarSeat(null);
   }
 
   _giveFlower() {
@@ -130,11 +156,17 @@ export class Game {
       this.controller.setSpawn(this.self.x, this.self.z, Math.PI);
       this.controller.enabled = true;
 
+      if (d.carState) this.world.car.snapTo(d.carState); // car is where it was left
       for (const p of d.others) this._addPartner(p);
 
       this.joined = true;
       ui.hideSelect();
       ui.setupChat((text) => net.sendChat(text));
+      ui.setupCheat((code) => {
+        const cheat = CHEATS[code];
+        if (cheat) cheat(this);
+        else ui.toast('Nothing happened… 🤔', 2000);
+      });
       ui.setPocket(this._pocketView());
       if (!this.partner) {
         ui.setPartnerStatus('💌 Waiting for your love to join…');
@@ -165,6 +197,22 @@ export class Game {
       if (this.partner && d.id === this.partner.id) this.partner.avatar.emote(d.emoji);
     };
 
+    net.onCarState = (s) => {
+      if (this.carSeat !== 'driver') this.world.car.setNetState(s);
+    };
+
+    net.onCarSeat = (d) => {
+      if (!this.partner || d.id !== this.partner.id) return;
+      this.partnerCarSeat = d.seat;
+      // both grabbed the wheel at once — lower socket id keeps it
+      if (d.seat === 'driver' && this.carSeat === 'driver' && d.id < net.socket.id) {
+        this.carSeat = 'passenger';
+        this.controller.vehicle = { car: this.world.car, seat: 'passenger' };
+        net.sendCarSeat('passenger');
+        ui.toast('You slid over to the passenger seat 💺', 2400);
+      }
+    };
+
     net.onGift = (d) => {
       if (!this.partner || d.id !== this.partner.id) return;
       const key = d.flower in FLOWERS ? d.flower : 'rose';
@@ -186,6 +234,7 @@ export class Game {
       if (this.partner && d.id === this.partner.id) {
         this.partner.avatar.dispose(this.scene);
         this.partner = null;
+        this.partnerCarSeat = null;
         ui.setPartnerStatus('💌 Waiting for your love to join…');
         ui.toast(`💔 ${d.name} left the world`, 3000);
       }
@@ -204,6 +253,7 @@ export class Game {
       target: { x: p.x, y: p.y, z: p.z, ry: p.ry },
       anim: p.anim || 'idle', speed: p.speed || 0,
     };
+    this.partnerCarSeat = p.carSeat || null;
     this.ui.setPartnerStatus(`❤️ ${p.name} is here`);
   }
 
@@ -214,6 +264,7 @@ export class Game {
 
       if (e.code === 'KeyE') this._interact();
       else if (e.code === 'KeyF') this._giveFlower();
+      else if (e.code === 'Backquote') { e.preventDefault(); this.ui.openCheat(); }
       else if (e.code === 'Enter') { e.preventDefault(); this.ui.openChat(); }
       else if (e.code === 'Escape' && this.ui.closetOpen) this.ui.closeCloset();
       else if (EMOTE_KEYS[e.code]) {
@@ -230,6 +281,7 @@ export class Game {
 
   _interact() {
     if (this.ui.closetOpen) { this.ui.closeCloset(); return; }
+    if (this.carSeat) { this.exitCar(); return; }
     if (this.controller.seated) { this.controller.standUp(); return; }
     const it = this.currentInteractable;
     if (!it) return;
@@ -264,14 +316,24 @@ export class Game {
   _updatePartner(dt, selfState) {
     const p = this.partner;
     const g = p.avatar.group;
-    const k = 1 - Math.exp(-12 * dt);
-    g.position.x += (p.target.x - g.position.x) * k;
-    g.position.y += (p.target.y - g.position.y) * k;
-    g.position.z += (p.target.z - g.position.z) * k;
-    let d = ((p.target.ry - g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-    g.rotation.y += d * k;
-    p.avatar.setAnim(p.anim, p.speed);
-    p.avatar.update(dt);
+    if (this.partnerCarSeat) {
+      // partner is in the car: glue them to the seat of OUR car instance —
+      // chaining their networked position on top of the car sync looks laggy
+      const car = this.world.car;
+      g.position.copy(car.seatWorld(this.partnerCarSeat));
+      g.rotation.y = car.state.ry;
+      p.avatar.setAnim('sit', 0);
+      p.avatar.update(dt);
+    } else {
+      const k = 1 - Math.exp(-12 * dt);
+      g.position.x += (p.target.x - g.position.x) * k;
+      g.position.y += (p.target.y - g.position.y) * k;
+      g.position.z += (p.target.z - g.position.z) * k;
+      let d = ((p.target.ry - g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      g.rotation.y += d * k;
+      p.avatar.setAnim(p.anim, p.speed);
+      p.avatar.update(dt);
+    }
 
     // ambient hearts when the couple is close
     this._heartTimer += dt;
@@ -296,6 +358,13 @@ export class Game {
   }
 
   _updateInteractablePrompt(selfState) {
+    if (this.carSeat) {
+      this.currentInteractable = null;
+      this.ui.showPrompt(this.carSeat === 'driver'
+        ? '<b>WASD</b> drive · <b>Space</b> brake · <b>E</b> hop out'
+        : 'Enjoying the ride 💕 · <b>E</b> hop out');
+      return;
+    }
     if (this.controller.seated) {
       this.currentInteractable = null;
       this.ui.showPrompt('Press <b>E</b> or move to get up');
@@ -304,7 +373,8 @@ export class Game {
     let best = null, bestD = Infinity;
     for (const it of this.world.interactables) {
       if (it.available && !it.available()) continue; // e.g. a flower that's still regrowing
-      const d = Math.hypot(it.x - selfState.x, it.z - selfState.z);
+      const p = it.getPos ? it.getPos() : it;       // e.g. the car moves around
+      const d = Math.hypot(p.x - selfState.x, p.z - selfState.z);
       if (d < it.radius && d < bestD) { best = it; bestD = d; }
     }
     this.currentInteractable = best;
@@ -331,6 +401,17 @@ export class Game {
       return;
     }
 
+    /* couple car — before the controller so seat positions are current */
+    this.world.car.update(dt, this.carSeat === 'driver' ? this.controller.keys : null, this._night);
+    if (this.carSeat === 'driver') {
+      const nowMs = performance.now();
+      if (nowMs - this._lastCarSent > CAR_SEND_MS) {
+        const c = this.world.car.state;
+        this.net.sendCarState({ x: c.x, z: c.z, ry: c.ry, v: c.v });
+        this._lastCarSent = nowMs;
+      }
+    }
+
     /* self */
     const state = this.controller.update(dt);
     this.selfAvatar.group.position.set(state.x, state.y, state.z);
@@ -355,14 +436,15 @@ export class Game {
     this.hearts.update(dt);
     this._updateInteractablePrompt(state);
 
-    this.world.update(t, dt, this.controller.pos);
+    this._night = this.world.update(t, dt, this.controller.pos);
     this._updateClockUI(t);
 
     this.minimap.update(dt,
       { x: state.x, z: state.z, ry: state.ry, role: this.self.role },
       this.partner
         ? { x: this.partner.avatar.group.position.x, z: this.partner.avatar.group.position.z, role: this.partner.role }
-        : null);
+        : null,
+      { x: this.world.car.state.x, z: this.world.car.state.z });
 
     this.renderer.render(this.scene, this.camera);
   }
