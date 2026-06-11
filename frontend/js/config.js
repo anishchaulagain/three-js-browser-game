@@ -21,3 +21,16 @@ export const SNACKS = ['🧃', '🍎', '🍰', '🍓', '🍫'];
 /** couple proximity (m) for ambient floating hearts */
 export const HEART_DISTANCE = 2.4;
 export const KISS_DISTANCE = 2.5;
+
+/** flowers that can be picked in the garden and gifted with F */
+export const FLOWERS = {
+  rose:      { emoji: '🌹', name: 'rose',      color: 0xd90429 },
+  tulip:     { emoji: '🌷', name: 'tulip',     color: 0xff7eb6 },
+  sunflower: { emoji: '🌻', name: 'sunflower', color: 0xffd000 },
+  daisy:     { emoji: '🌼', name: 'daisy',     color: 0xfff8e8 },
+  blossom:   { emoji: '🌸', name: 'blossom',   color: 0xffb7d5 },
+};
+export const POCKET_MAX = 8;
+export const GIVE_DISTANCE = 2.5;
+/** seconds until a picked plant grows back */
+export const FLOWER_RESPAWN_S = 45;

@@ -85,6 +85,19 @@ export class UI {
     $('partner-status').textContent = text;
   }
 
+  /** items: [{emoji, count}] — what's in your flower pocket */
+  setPocket(items) {
+    const el = $('pocket');
+    el.classList.remove('hidden');
+    if (!items.length) {
+      el.innerHTML = '<span class="pocket-empty">🌸 pocket empty — flowers grow at the Pick-a-Bloom garden</span>';
+      return;
+    }
+    el.innerHTML =
+      items.map((i) => `<span class="pocket-slot">${i.emoji}<b>×${i.count}</b></span>`).join('') +
+      '<span class="pocket-hint">F — give 💝</span>';
+  }
+
   /* ===== prompt + toast ===== */
   showPrompt(html) {
     const p = $('prompt');

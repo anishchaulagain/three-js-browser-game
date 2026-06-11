@@ -13,6 +13,7 @@ export class Network {
     this.onState = null;
     this.onOutfit = null;
     this.onEmote = null;
+    this.onGift = null;
     this.onChat = null;
     this.onLeft = null;
     this.onFull = null;
@@ -30,6 +31,7 @@ export class Network {
     this.socket.on('player_state', (s) => this.onState && this.onState(s));
     this.socket.on('outfit', (d) => this.onOutfit && this.onOutfit(d));
     this.socket.on('emote', (d) => this.onEmote && this.onEmote(d));
+    this.socket.on('gift', (d) => this.onGift && this.onGift(d));
     this.socket.on('chat', (d) => this.onChat && this.onChat(d));
     this.socket.on('player_left', (d) => this.onLeft && this.onLeft(d));
     this.socket.on('world_full', () => this.onFull && this.onFull());
@@ -61,5 +63,6 @@ export class Network {
   sendState(s) { this.socket.emit('state', s); }
   sendOutfit(i) { this.socket.emit('outfit', i); }
   sendEmote(e) { this.socket.emit('emote', e); }
+  sendGift(flower) { this.socket.emit('gift', flower); }
   sendChat(t) { this.socket.emit('chat', t); }
 }

@@ -17,6 +17,7 @@ cook dinner, sit by the pond, and fall asleep side by side while the sun sets.
 - 🤫 **Secret places** — three hidden spots are tucked around the edges of the map (and deliberately left off the minimap). Explore together.
 - 🗺️ **Minimap** — bottom-left corner, north-up view of the whole world: roads, buildings, water, home — plus a heading arrow for you and a pulsing ❤ pin for your partner.
 - 💬 **Chat & emotes** — speech bubbles, ❤️ / 👋 / 😘 emotes, and floating hearts when you stand close together.
+- 🌷 **Pick-a-Bloom garden** — a fenced garden west of the path where roses, tulips, sunflowers, daisies and blossoms can be plucked (E) into your pocket. Walk up to your partner and press **F** to give them a flower — it lands in their pocket with a burst of hearts. Picked plants regrow after ~45 s.
 
 ## Run it
 
@@ -36,7 +37,8 @@ same network using `http://<your-ip>:3000`). One of you picks *Him*, the other *
 | W A S D / arrows | Move |
 | Shift | Run |
 | Space | Jump |
-| E | Interact (closet, bed, chairs, stove, fridge…) |
+| E | Interact (closet, bed, chairs, stove, fridge, pick flowers…) |
+| F | Give a flower from your pocket to your partner |
 | Enter | Chat |
 | H / G / K | ❤️ / 👋 / 😘 emotes |
 | Mouse | Look around — click the world once to lock the cursor (Esc to release); dragging works too |

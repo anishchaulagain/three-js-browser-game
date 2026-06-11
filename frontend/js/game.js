@@ -12,7 +12,10 @@ import { UI } from './ui.js';
 import { HeartEffects } from './effects.js';
 import { Minimap } from './minimap.js';
 import { interactionHandlers } from './interactions.js';
-import { SPAWNS, STATE_SEND_MS, EMOTE_KEYS, HEART_DISTANCE, KISS_DISTANCE } from './config.js';
+import {
+  SPAWNS, STATE_SEND_MS, EMOTE_KEYS, HEART_DISTANCE, KISS_DISTANCE,
+  FLOWERS, POCKET_MAX, GIVE_DISTANCE,
+} from './config.js';
 
 export class Game {
   constructor() {
@@ -45,6 +48,7 @@ export class Game {
 
     /* state */
     this.joined = false;
+    this.pocket = [];          // flower keys you're carrying (see config.FLOWERS)
     this.self = null;          // {id, role, name, outfit}
     this.selfAvatar = null;
     this.partner = null;       // {id, role, name, outfit, avatar, target, anim, speed}
@@ -70,6 +74,37 @@ export class Game {
     const g = this.partner.avatar.group.position;
     const p = this.controller.pos;
     return Math.hypot(g.x - p.x, g.z - p.z);
+  }
+
+  /* ============ flower pocket ============ */
+  addToPocket(flowerKey) {
+    this.pocket.push(flowerKey);
+    this.ui.setPocket(this._pocketView());
+  }
+
+  _pocketView() {
+    const counts = {};
+    for (const key of this.pocket) counts[key] = (counts[key] || 0) + 1;
+    return Object.entries(counts).map(([key, count]) => ({ emoji: FLOWERS[key].emoji, count }));
+  }
+
+  _giveFlower() {
+    if (!this.pocket.length) {
+      this.ui.toast('Your pocket is empty — visit the Pick-a-Bloom garden 🌷', 2600);
+      return;
+    }
+    if (!this.partner || this.distanceToPartner() > GIVE_DISTANCE) {
+      this.ui.toast('Walk up to your love to give a flower 💐', 2400);
+      return;
+    }
+    const key = this.pocket.pop();
+    this.ui.setPocket(this._pocketView());
+    const f = FLOWERS[key];
+    this.net.sendGift(key);
+    this.selfAvatar.emote(f.emoji);
+    const g = this.partner.avatar.group.position;
+    this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 4);
+    this.ui.toast(`You gave ${this.partner.name} a ${f.name} ${f.emoji}`, 2800);
   }
 
   /* ============ network ============ */
@@ -100,6 +135,7 @@ export class Game {
       this.joined = true;
       ui.hideSelect();
       ui.setupChat((text) => net.sendChat(text));
+      ui.setPocket(this._pocketView());
       if (!this.partner) {
         ui.setPartnerStatus('💌 Waiting for your love to join…');
         ui.toast(`Welcome home, ${this.self.name} 💕 Share this address with your partner!`, 4200);
@@ -127,6 +163,17 @@ export class Game {
 
     net.onEmote = (d) => {
       if (this.partner && d.id === this.partner.id) this.partner.avatar.emote(d.emoji);
+    };
+
+    net.onGift = (d) => {
+      if (!this.partner || d.id !== this.partner.id) return;
+      const key = d.flower in FLOWERS ? d.flower : 'rose';
+      const f = FLOWERS[key];
+      if (this.pocket.length < POCKET_MAX) this.addToPocket(key);
+      this.partner.avatar.emote(f.emoji);
+      const g = this.partner.avatar.group.position;
+      this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 4);
+      ui.toast(`${this.partner.name} gave you a ${f.name} ${f.emoji}!`, 3200);
     };
 
     net.onChat = (d) => {
@@ -166,6 +213,7 @@ export class Game {
       if (!this.joined || this.ui.isTyping()) return;
 
       if (e.code === 'KeyE') this._interact();
+      else if (e.code === 'KeyF') this._giveFlower();
       else if (e.code === 'Enter') { e.preventDefault(); this.ui.openChat(); }
       else if (e.code === 'Escape' && this.ui.closetOpen) this.ui.closeCloset();
       else if (EMOTE_KEYS[e.code]) {
@@ -255,6 +303,7 @@ export class Game {
     }
     let best = null, bestD = Infinity;
     for (const it of this.world.interactables) {
+      if (it.available && !it.available()) continue; // e.g. a flower that's still regrowing
       const d = Math.hypot(it.x - selfState.x, it.z - selfState.z);
       if (d < it.radius && d < bestD) { best = it; bestD = d; }
     }

@@ -7,7 +7,7 @@
  *      and the interactable. Done.
  */
 import { OUTFITS } from './avatar/outfits.js';
-import { SNACKS } from './config.js';
+import { SNACKS, FLOWERS, POCKET_MAX } from './config.js';
 
 export const interactionHandlers = {
   closet(game) {
@@ -42,6 +42,22 @@ export const interactionHandlers = {
     game.selfAvatar.emote(snack);
     game.net.sendEmote(snack);
     game.ui.toast(`You grabbed a snack ${snack}`, 2000);
+  },
+
+  /** pluck a flower from the picking garden into your pocket */
+  pick(game, it) {
+    const { plant } = it.data;
+    if (!plant.isUp()) return;
+    if (game.pocket.length >= POCKET_MAX) {
+      game.ui.toast('Your pocket is already full of flowers 💐', 2200);
+      return;
+    }
+    plant.pick();
+    const f = FLOWERS[plant.flower];
+    game.addToPocket(plant.flower);
+    game.selfAvatar.emote(f.emoji);
+    game.net.sendEmote(f.emoji);
+    game.ui.toast(`Picked a ${f.name} ${f.emoji} — press F near your love to give it`, 2400);
   },
 
   /** generic little moment: emote + toast, driven entirely by interactable data

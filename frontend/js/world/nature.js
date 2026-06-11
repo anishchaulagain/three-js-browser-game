@@ -124,6 +124,7 @@ export function buildNature(ctx) {
     if (Math.hypot(x - POND.x, z - POND.z) < POND.r + 3) return false;
     if (Math.abs(x) < 6 && z > -21 && z < 120) return false;                // path + road to the city
     if (Math.hypot(x - PICNIC.x, z - PICNIC.z) < 6) return false;
+    if (x > -52 && x < -32 && z > 11 && z < 25) return false;               // picking garden
     if (Math.hypot(x - GARDEN.x, z - GARDEN.z) < 6) return false;
     if (Math.hypot(x, z) < 5) return false;                                 // spawn
     if (x > -82 && x < 82 && z > 26 && z < 118) return false;               // the city

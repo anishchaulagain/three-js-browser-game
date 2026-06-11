@@ -71,6 +71,11 @@ function registerSockets(io, players) {
       socket.broadcast.emit('emote', { id: socket.id, emoji: emoji.slice(0, LIMITS.emoji) });
     });
 
+    socket.on('gift', (flower) => {
+      if (!players.has(socket.id) || typeof flower !== 'string') return;
+      socket.broadcast.emit('gift', { id: socket.id, flower: flower.slice(0, 16) });
+    });
+
     socket.on('chat', (text) => {
       const p = players.get(socket.id);
       if (!p || typeof text !== 'string') return;

@@ -12,6 +12,7 @@ import { buildHouse } from './house.js';
 import { buildNature } from './nature.js';
 import { buildCity } from './city.js';
 import { buildSecrets } from './secrets.js';
+import { buildGarden } from './garden.js';
 import { createTraffic } from './traffic.js';
 
 export function createWorld(scene) {
@@ -38,6 +39,7 @@ export function createWorld(scene) {
   const nature = buildNature(ctx);
   const city = buildCity(ctx);
   const secrets = buildSecrets(ctx);
+  const garden = buildGarden(ctx);
   const traffic = createTraffic(scene);
 
   /** Advance the whole environment; returns night ∈ [0,1]. */
@@ -47,6 +49,7 @@ export function createWorld(scene) {
     nature.update(night, dt);
     city.update(night);
     secrets.update(night);
+    garden.update(dt);
     traffic.update(dt, night);
     return night;
   }
