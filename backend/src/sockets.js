@@ -4,6 +4,9 @@ const { timeInfo } = require('./worldclock');
 const { authenticateSocket } = require('./auth');
 
 function registerSockets(io, players) {
+  /** last known couple-car state, so a late joiner finds the car where it was left */
+  let carState = null;
+
   const broadcastRoles = () =>
     io.emit('roles', { taken: players.takenRoles(), count: players.size });
 
@@ -44,6 +47,7 @@ function registerSockets(io, players) {
       socket.emit('joined', {
         self: player,
         others: players.othersOf(socket.id),
+        carState,
         ...timeInfo(),
       });
       socket.broadcast.emit('player_joined', player);
@@ -74,6 +78,28 @@ function registerSockets(io, players) {
     socket.on('gift', (flower) => {
       if (!players.has(socket.id) || typeof flower !== 'string') return;
       socket.broadcast.emit('gift', { id: socket.id, flower: flower.slice(0, 16) });
+    });
+
+    socket.on('car_state', (s) => {
+      // any joined player's car updates are accepted — with two players there's
+      // nothing to cheat, and requiring carSeat==='driver' would make the relay
+      // depend on message ordering
+      const p = players.get(socket.id);
+      if (!p || !s) return;
+      carState = {
+        x: typeof s.x === 'number' ? s.x : 0,
+        z: typeof s.z === 'number' ? s.z : 0,
+        ry: typeof s.ry === 'number' ? s.ry : 0,
+        v: typeof s.v === 'number' ? s.v : 0,
+      };
+      socket.broadcast.emit('car_state', carState);
+    });
+
+    socket.on('car_seat', (seat) => {
+      const p = players.get(socket.id);
+      if (!p) return;
+      p.carSeat = seat === 'driver' || seat === 'passenger' ? seat : null;
+      socket.broadcast.emit('car_seat', { id: socket.id, seat: p.carSeat });
     });
 
     socket.on('chat', (text) => {
