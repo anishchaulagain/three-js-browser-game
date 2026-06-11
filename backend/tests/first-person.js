@@ -54,15 +54,29 @@ const expect = (label, cond) => { console.log(`${cond ? '✔' : '✘'} ${label}`
   expect(`camera at head (y ${s.camY}, offset ${s.headDist}m)`, Math.abs(s.camY - 1.78) < 0.1 && s.headDist < 0.1);
   expect('own avatar hidden locally', !s.avatarVisible);
 
-  // mouse look turns the body in first person
+  // mouse look turns the body in first person — the avatar must FACE the look
+  // direction (ry = yaw + π), not the camera-orbit direction behind the player
   await page.mouse.click(640, 400);
   await sleep(250);
   await page.mouse.move(640, 400);
   await page.mouse.move(880, 400, { steps: 6 });
   await sleep(250);
   s = await snap();
-  expect(`body follows look direction (ry ${s.ry.toFixed(2)} == yaw ${s.yaw.toFixed(2)})`,
-    Math.abs(s.ry - s.yaw) < 0.01);
+  const facingErr = Math.abs(((s.ry - s.yaw - Math.PI) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+  expect(`body faces the look direction (ry ${s.ry.toFixed(2)} == yaw+π, err ${facingErr.toFixed(3)})`,
+    facingErr < 0.01);
+
+  // concretely: the avatar's facing vector must match the camera's view vector
+  const vectors = await page.evaluate(() => {
+    const g = window.__game.game;
+    const camDir = g.camera.getWorldDirection(new (g.camera.position.constructor)());
+    const ry = g.controller.ry;
+    return { camX: camDir.x, camZ: camDir.z, faceX: Math.sin(ry), faceZ: Math.cos(ry) };
+  });
+  // compare headings on the ground plane (the camera also pitches up/down)
+  const len = Math.hypot(vectors.camX, vectors.camZ);
+  const dot = (vectors.camX * vectors.faceX + vectors.camZ * vectors.faceZ) / len;
+  expect(`avatar facing aligns with camera heading (dot ${dot.toFixed(3)} ≈ +1)`, dot > 0.999);
 
   // V → back to third person
   await page.keyboard.press('KeyV');

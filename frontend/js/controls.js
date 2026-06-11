@@ -148,8 +148,9 @@ export class PlayerController {
           this.pos.addScaledVector(move, this.speed * dt);
         }
         if (this.firstPerson) {
-          // in first person the body always faces where you look
-          this.ry = this.yaw;
+          // in first person the body faces where you LOOK — the look direction
+          // is opposite the camera-orbit yaw (which points behind the player)
+          this.ry = this.yaw + Math.PI;
         } else if (move.lengthSq() > 0) {
           // face the direction of travel (shortest-arc lerp)
           const targetRy = Math.atan2(move.x, move.z);
