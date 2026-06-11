@@ -4,10 +4,16 @@
   "description": "A tiny open world built for exactly two people",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test:net": "node tests/two-players.js",
+    "test:browser": "node tests/browser-smoke.js"
   },
   "dependencies": {
     "express": "^4.19.2",
     "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^22.0.0",
+    "socket.io-client": "^4.7.5"
   }
 }
