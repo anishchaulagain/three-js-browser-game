@@ -63,12 +63,13 @@ export class Network {
     return Math.floor(Math.max(0, this.elapsed()) / this.dayLength) + 1;
   }
 
-  join(role, name, x, z) { this.socket.emit('join', { role, name, x, z }); }
+  join(role, name, x, z, pubkey) { this.socket.emit('join', { role, name, x, z, pubkey }); }
   sendState(s) { this.socket.emit('state', s); }
   sendOutfit(i) { this.socket.emit('outfit', i); }
   sendEmote(e) { this.socket.emit('emote', e); }
   sendGift(flower) { this.socket.emit('gift', flower); }
   sendCarState(s) { this.socket.emit('car_state', s); }
   sendCarSeat(seat) { this.socket.emit('car_seat', seat); }
-  sendChat(t) { this.socket.emit('chat', t); }
+  /** envelope = {n, c} — already encrypted; plaintext never goes on the wire */
+  sendChat(envelope) { this.socket.emit('chat', envelope); }
 }

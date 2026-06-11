@@ -21,7 +21,7 @@ class PlayerManager {
    * character is taken, hands out the other one). Returns null if no role
    * is free.
    */
-  add(id, { role, name, x, z }) {
+  add(id, { role, name, x, z, pubkey }) {
     let resolved = role === 'female' ? 'female' : 'male';
     const taken = this.takenRoles();
     if (taken.includes(resolved)) {
@@ -33,6 +33,8 @@ class PlayerManager {
       id,
       role: resolved,
       name: cleanName || (resolved === 'male' ? 'Him' : 'Her'),
+      // E2E chat public key — opaque to the server, just relayed to the partner
+      pubkey: typeof pubkey === 'string' && pubkey.length <= 64 ? pubkey : null,
       outfit: 0,
       x: typeof x === 'number' ? x : 0,
       y: 0,

@@ -17,7 +17,8 @@ cook dinner, sit by the pond, and fall asleep side by side while the sun sets.
 - 🚙 **Your own car** — a rose convertible parked beside the house. First one in drives (WASD + Space brake), the other rides shotgun. Fully synced between both players, it respects world collisions, its headlights come on at night, it shows as 🚗 on the minimap — and it stays wherever you park it, even for a partner who joins later.
 - 🤫 **Secret places** — three hidden spots are tucked around the edges of the map (and deliberately left off the minimap). Explore together.
 - 🗺️ **Minimap** — bottom-left corner, north-up view of the whole world: roads, buildings, water, home — plus a heading arrow for you and a pulsing ❤ pin for your partner.
-- 💬 **Chat & emotes** — speech bubbles, ❤️ / 👋 / 😘 emotes, and floating hearts when you stand close together.
+- 💬 **Chat & emotes** — press **T** (or Enter) for a chat popup with quick-send phrases ("I love you ❤️", "Miss you 😘", …); messages appear as speech bubbles above your head on both screens, plus ❤️ / 👋 / 😘 emotes and floating hearts when you stand close together.
+- 🔒 **End-to-end encrypted chat** — messages are encrypted on your device (TweetNaCl: Curve25519 + XSalsa20-Poly1305) and only your partner's device can decrypt them. The server relays ciphertext it cannot read. When you both join, you each get the same emoji **love seal** (a key fingerprint) — if they match, your channel is private.
 - 🌷 **Pick-a-Bloom garden** — a fenced garden west of the path where roses, tulips, sunflowers, daisies and blossoms can be plucked (E) into your pocket. Walk up to your partner and press **F** to give them a flower — it lands in their pocket with a burst of hearts. Picked plants regrow after ~45 s.
 
 ## Run it
@@ -40,7 +41,7 @@ same network using `http://<your-ip>:3000`). One of you picks *Him*, the other *
 | Space | Jump |
 | E | Interact (closet, bed, chairs, stove, fridge, pick flowers…) |
 | F | Give a flower from your pocket to your partner |
-| Enter | Chat |
+| T / Enter | Open the chat popup |
 | H / G / K | ❤️ / 👋 / 😘 emotes |
 | Mouse | Look around — click the world once to lock the cursor (Esc to release); dragging works too |
 | V | Toggle first-person / third-person view |

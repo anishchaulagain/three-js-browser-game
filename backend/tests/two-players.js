@@ -40,10 +40,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   expect('B was handed female (conflict resolved)', b.events.joined?.[0]?.self.role === 'female');
   expect('A saw B join', a.events.player_joined?.[0]?.name === 'Mia');
 
-  a.emit('chat', 'hi love');
+  a.emit('chat', { n: 'bm9uY2U=', c: 'Y2lwaGVydGV4dA==' }); // E2E envelope (server can't read it)
   a.emit('outfit', 3);
   await sleep(300);
-  expect('chat relayed to both', a.events.chat?.length === 1 && b.events.chat?.length === 1);
+  expect('encrypted chat relayed to partner only',
+    b.events.chat?.length === 1 && b.events.chat[0].e?.c === 'Y2lwaGVydGV4dA==' && !a.events.chat);
   expect('outfit change relayed to B', b.events.outfit?.[0]?.outfit === 3);
 
   const c = client('C');

@@ -102,12 +102,13 @@ function registerSockets(io, players) {
       socket.broadcast.emit('car_seat', { id: socket.id, seat: p.carSeat });
     });
 
-    socket.on('chat', (text) => {
+    socket.on('chat', (env) => {
+      // E2E encrypted: env = {n: nonce, c: ciphertext} (base64). The server
+      // cannot read the message — it only checks shape/size and relays it.
       const p = players.get(socket.id);
-      if (!p || typeof text !== 'string') return;
-      const msg = text.trim().slice(0, LIMITS.chat);
-      if (!msg) return;
-      io.emit('chat', { id: socket.id, name: p.name, text: msg });
+      if (!p || !env || typeof env.n !== 'string' || typeof env.c !== 'string') return;
+      if (env.n.length > 48 || env.c.length > 800) return;
+      socket.broadcast.emit('chat', { id: socket.id, name: p.name, e: { n: env.n, c: env.c } });
     });
 
     socket.on('disconnect', () => {
