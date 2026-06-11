@@ -1,28 +1,7 @@
+/** Roblox-style blocky avatar: body build, outfit application, animation. */
 import * as THREE from 'three';
-
-/* ===================== Outfits ===================== */
-
-export const OUTFITS = {
-  male: [
-    { name: 'Casual',     icon: '👕', top: 0x4f8ef7, bottom: 0x2f3a4a, shoes: 0xffffff, sleeves: 'short' },
-    { name: 'Date Night', icon: '🕴️', top: 0x1f2430, bottom: 0x10131a, shoes: 0x4a3526, sleeves: 'long'  },
-    { name: 'Beach Day',  icon: '🏖️', top: 0xffd166, bottom: 0x06d6a0, shoes: 0xf4e1c1, sleeves: 'short', shorts: true },
-    { name: 'Cozy',       icon: '🧸', top: 0x9a8c98, bottom: 0x4a4e69, shoes: 0xc9ada7, sleeves: 'long'  },
-    { name: 'Adventurer', icon: '🧭', top: 0x386641, bottom: 0x6f4518, shoes: 0x283618, sleeves: 'long'  },
-    { name: 'Formal',     icon: '🤵', top: 0xf2f2f2, bottom: 0x14213d, shoes: 0x111111, sleeves: 'long'  },
-  ],
-  female: [
-    { name: 'Casual',     icon: '👚', top: 0xff6b9d, bottom: 0x3a5a8c, shoes: 0xffffff, sleeves: 'short' },
-    { name: 'Red Dress',  icon: '💃', top: 0xd90429, bottom: 0xd90429, shoes: 0xb3001b, sleeves: 'short', skirt: true },
-    { name: 'Sundress',   icon: '🌼', top: 0xffd6e0, bottom: 0xffd6e0, shoes: 0xfff1e6, sleeves: 'short', skirt: true },
-    { name: 'Cozy',       icon: '🧸', top: 0xb8a1e3, bottom: 0x494d7e, shoes: 0xe0c3fc, sleeves: 'long'  },
-    { name: 'Adventurer', icon: '🧗', top: 0x52796f, bottom: 0x354f52, shoes: 0x2f3e46, sleeves: 'long'  },
-    { name: 'Princess',   icon: '👑', top: 0x9d4edd, bottom: 0x7b2cbf, shoes: 0xe0aaff, sleeves: 'short', skirt: true },
-  ],
-};
-
-const SKIN = { male: 0xf1c27d, female: 0xf7d1a6 };
-const HAIR = { male: 0x4a2c12, female: 0x6b3a1f };
+import { OUTFITS, SKIN, HAIR } from './outfits.js';
+import { textSprite, bubbleSprite, emojiSprite } from './sprites.js';
 
 function box(w, h, d, color) {
   const m = new THREE.Mesh(
@@ -32,81 +11,6 @@ function box(w, h, d, color) {
   m.castShadow = true;
   return m;
 }
-
-function makeCanvasTexture(draw, w = 512, h = 128) {
-  const c = document.createElement('canvas');
-  c.width = w; c.height = h;
-  draw(c.getContext('2d'), w, h);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
-function textSprite(text, { font = 'bold 56px "Segoe UI", sans-serif', color = '#fff' } = {}) {
-  const tex = makeCanvasTexture((ctx, w, h) => {
-    ctx.font = font;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.lineWidth = 8;
-    ctx.strokeStyle = 'rgba(20,10,30,0.85)';
-    ctx.strokeText(text, w / 2, h / 2);
-    ctx.fillStyle = color;
-    ctx.fillText(text, w / 2, h / 2);
-  });
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-  sp.scale.set(2.0, 0.5, 1);
-  return sp;
-}
-
-function bubbleSprite(text) {
-  const tex = makeCanvasTexture((ctx, w, h) => {
-    // word-wrap into up to 2 lines
-    ctx.font = 'bold 38px "Segoe UI", sans-serif';
-    const words = text.split(' ');
-    const lines = [''];
-    for (const word of words) {
-      const t = (lines[lines.length - 1] + ' ' + word).trim();
-      if (ctx.measureText(t).width > w - 90 && lines[lines.length - 1]) lines.push(word);
-      else lines[lines.length - 1] = t;
-    }
-    if (lines.length > 2) { lines.length = 2; lines[1] += '…'; }
-    const r = 26;
-    ctx.fillStyle = 'rgba(255,255,255,0.94)';
-    ctx.beginPath();
-    ctx.roundRect(14, 8, w - 28, h - 34, r);
-    ctx.fill();
-    // little tail
-    ctx.beginPath();
-    ctx.moveTo(w / 2 - 16, h - 28);
-    ctx.lineTo(w / 2, h - 4);
-    ctx.lineTo(w / 2 + 16, h - 28);
-    ctx.fill();
-    ctx.fillStyle = '#3a2440';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const cy = lines.length === 1 ? (h - 26) / 2 + 8 : 0;
-    lines.forEach((ln, i) =>
-      ctx.fillText(ln, w / 2, lines.length === 1 ? cy : 34 + i * 44)
-    );
-  }, 512, 144);
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-  sp.scale.set(2.6, 0.73, 1);
-  return sp;
-}
-
-function emojiSprite(emoji) {
-  const tex = makeCanvasTexture((ctx, w, h) => {
-    ctx.font = '96px "Segoe UI Emoji", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(emoji, w / 2, h / 2 + 6);
-  }, 128, 128);
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-  sp.scale.set(0.7, 0.7, 1);
-  return sp;
-}
-
-/* ===================== Avatar ===================== */
 
 export class Avatar {
   constructor(role) {
