@@ -26,6 +26,7 @@ export class PlayerController {
     this.yaw = Math.PI;
     this.pitch = 0.34;
     this.dist = 6;
+    this.firstPerson = false;
     this._camPos = new THREE.Vector3(0, 4, 9);
     this._ray = new THREE.Raycaster();
 
@@ -33,6 +34,7 @@ export class PlayerController {
     window.addEventListener('keydown', (e) => {
       if (this.isTyping()) return;
       this.keys[e.code] = true;
+      if (e.code === 'KeyV' && this.enabled) this.firstPerson = !this.firstPerson;
       if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
     });
     window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
@@ -52,18 +54,26 @@ export class PlayerController {
     let dragging = false, lx = 0, ly = 0;
     dom.addEventListener('mousedown', (e) => { dragging = true; lx = e.clientX; ly = e.clientY; });
     window.addEventListener('mouseup', () => { dragging = false; });
+    // first person allows looking much further up
+    const clampPitch = (p) => THREE.MathUtils.clamp(p, this.firstPerson ? -1.25 : -0.5, 1.25);
     window.addEventListener('mousemove', (e) => {
       if (document.pointerLockElement === dom) {
         this.yaw -= e.movementX * 0.0032;
-        this.pitch = THREE.MathUtils.clamp(this.pitch + e.movementY * 0.0028, -0.5, 1.25);
+        this.pitch = clampPitch(this.pitch + e.movementY * 0.0028);
       } else if (dragging) {
         this.yaw -= (e.clientX - lx) * 0.0055;
-        this.pitch = THREE.MathUtils.clamp(this.pitch + (e.clientY - ly) * 0.0045, -0.5, 1.25);
+        this.pitch = clampPitch(this.pitch + (e.clientY - ly) * 0.0045);
         lx = e.clientX; ly = e.clientY;
       }
     });
+    // scrolling all the way in enters first person; scrolling out leaves it
     dom.addEventListener('wheel', (e) => {
-      this.dist = THREE.MathUtils.clamp(this.dist + e.deltaY * 0.004, 2.5, 12);
+      if (this.firstPerson) {
+        if (e.deltaY > 0) { this.firstPerson = false; this.dist = 3; }
+      } else {
+        this.dist = THREE.MathUtils.clamp(this.dist + e.deltaY * 0.004, 1.8, 12);
+        if (this.dist < 2.1) { this.firstPerson = true; this.dist = 3; }
+      }
     }, { passive: true });
   }
 
@@ -122,6 +132,11 @@ export class PlayerController {
         if (move.lengthSq() > 0) {
           move.normalize();
           this.pos.addScaledVector(move, this.speed * dt);
+        }
+        if (this.firstPerson) {
+          // in first person the body always faces where you look
+          this.ry = this.yaw;
+        } else if (move.lengthSq() > 0) {
           // face the direction of travel (shortest-arc lerp)
           const targetRy = Math.atan2(move.x, move.z);
           let d = ((targetRy - this.ry + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
@@ -184,6 +199,15 @@ export class PlayerController {
   }
 
   _updateCamera(dt) {
+    if (this.firstPerson) {
+      const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
+      const look = new THREE.Vector3(-Math.sin(this.yaw) * cp, -sp, -Math.cos(this.yaw) * cp);
+      const head = new THREE.Vector3(this.pos.x, this.pos.y + 1.78, this.pos.z);
+      this.camera.position.copy(head);
+      this._camPos.copy(head); // keep the lerp state in sync for a smooth exit
+      this.camera.lookAt(head.add(look));
+      return;
+    }
     const target = new THREE.Vector3(this.pos.x, this.pos.y + 1.7, this.pos.z);
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     const offset = new THREE.Vector3(Math.sin(this.yaw) * cp, sp, Math.cos(this.yaw) * cp);

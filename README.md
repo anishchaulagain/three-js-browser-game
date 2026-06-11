@@ -42,7 +42,8 @@ same network using `http://<your-ip>:3000`). One of you picks *Him*, the other *
 | Enter | Chat |
 | H / G / K | ❤️ / 👋 / 😘 emotes |
 | Mouse | Look around — click the world once to lock the cursor (Esc to release); dragging works too |
-| Scroll | Zoom camera |
+| V | Toggle first-person / third-person view |
+| Scroll | Zoom camera — zooming all the way in also enters first person |
 
 ## Project layout
 

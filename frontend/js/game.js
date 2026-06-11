@@ -337,6 +337,8 @@ export class Game {
     this.selfAvatar.group.rotation.y = state.ry;
     this.selfAvatar.setAnim(state.anim, state.speed);
     this.selfAvatar.update(dt);
+    // hide your own body in first person (your partner still sees you normally)
+    this.selfAvatar.group.visible = !this.controller.firstPerson;
 
     // throttled state sync (only when something changed)
     const now = performance.now();
