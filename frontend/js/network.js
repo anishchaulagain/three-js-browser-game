@@ -5,7 +5,7 @@ export class Network {
     this.socket = io();
     this.offset = 0;        // serverNow - clientNow
     this.worldStart = 0;
-    this.dayLength = 120000;
+    this.dayLength = 2 * 60 * 60 * 1000; // fallback only — the server's value overrides this
 
     this.onWelcome = null;
     this.onJoined = null;

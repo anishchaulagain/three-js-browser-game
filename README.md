@@ -8,7 +8,7 @@ cook dinner, sit by the pond, and fall asleep side by side while the sun sets.
 
 - 🔒 **Two players only** — the server hard-caps the world at 2 connections. A third visitor sees "World is full 💔".
 - 🧑‍🤝‍🧑 **Roblox-style avatars** — blocky him & her characters with walking, running, jumping, sitting and sleeping animations.
-- ⏰ **2-minute day cycle** — a clock at the top of the screen runs from morning to night (one full day = 2 real minutes), with a moving sun and moon, sunrise/sunset skies, stars, and fireflies after dark.
+- ⏰ **2-hour day cycle** — a clock at the top of the screen runs from morning to night (one full day = 2 real hours, configurable via `DAY_LENGTH_MS` in `backend/src/config.js`), with a moving sun and moon, sunrise/sunset skies, stars, and fireflies after dark.
 - 🏡 **A house of your own** — bedroom (double bed, closet, lamp) and kitchen (stove, fridge, dinner table for two).
 - 👗 **Closet with outfits** — 6 outfits per character (casual, date night, cozy, beach/sundress, adventurer, formal/princess).
 - 🌍 **Open world** — forest, pond with a bench, picnic blanket, a heart-shaped flower garden, stone path, drifting clouds.
