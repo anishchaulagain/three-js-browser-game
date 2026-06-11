@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Our Little World 💕</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💕</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- ===== HUD (visible while playing) ===== -->
+  <div id="hud" class="hidden">
+    <div id="clock-pill">
+      <span id="clock-emoji">🌅</span>
+      <span id="clock-time">6:00 AM</span>
+      <span id="clock-phase">Morning</span>
+      <span id="day-label">Day 1</span>
+      <div id="day-bar"><div id="day-bar-fill"></div></div>
+    </div>
+
+    <div id="partner-status">💌 Waiting for your love to join…</div>
+
+    <div id="prompt" class="hidden"></div>
+    <div id="toast" class="hidden"></div>
+
+    <div id="chat-log"></div>
+    <input id="chat-input" class="hidden" maxlength="120" autocomplete="off"
+           placeholder="Say something sweet… (Enter to send, Esc to close)" />
+
+    <div id="help">
+      <div class="help-title">Controls ⌨️</div>
+      <div>WASD — move &nbsp;·&nbsp; Shift — run &nbsp;·&nbsp; Space — jump</div>
+      <div>E — interact &nbsp;·&nbsp; Enter — chat</div>
+      <div>H — ❤️ &nbsp;·&nbsp; G — 👋 &nbsp;·&nbsp; K — 😘</div>
+      <div>Drag mouse — look &nbsp;·&nbsp; Scroll — zoom</div>
+    </div>
+  </div>
+
+  <!-- ===== Closet / outfit picker ===== -->
+  <div id="closet-modal" class="hidden">
+    <div id="closet-panel">
+      <div id="closet-header">
+        <span>👗 Your Closet</span>
+        <button id="closet-close">✕</button>
+      </div>
+      <div id="closet-grid"></div>
+      <div id="closet-hint">Click an outfit to wear it · E or Esc to close</div>
+    </div>
+  </div>
+
+  <!-- ===== Character select ===== -->
+  <div id="select-screen">
+    <div id="select-panel">
+      <h1>Our Little World <span class="heart">💕</span></h1>
+      <p class="subtitle">A tiny open world made for exactly two people.</p>
+      <div id="select-cards">
+        <div class="char-card" data-role="male">
+          <div class="char-emoji">🙎‍♂️</div>
+          <div class="char-name">Him</div>
+          <div class="char-taken hidden">Taken ❤️</div>
+        </div>
+        <div class="char-card" data-role="female">
+          <div class="char-emoji">🙎‍♀️</div>
+          <div class="char-name">Her</div>
+          <div class="char-taken hidden">Taken ❤️</div>
+        </div>
+      </div>
+      <input id="name-input" maxlength="16" placeholder="Your name (optional)" autocomplete="off" />
+      <button id="join-btn" disabled>Pick a character ↑</button>
+      <p class="tiny">Send your partner this same address — the world only fits two. 🔒</p>
+    </div>
+  </div>
+
+  <!-- ===== World full ===== -->
+  <div id="full-screen" class="hidden">
+    <div id="select-panel">
+      <h1>💔 World is full</h1>
+      <p class="subtitle">This little world belongs to two people already.<br/>Maybe build one of your own?</p>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
