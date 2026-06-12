@@ -298,9 +298,20 @@ export class PlayerController {
   }
 
   state() {
+    // where the head is looking, relative to the body — the camera's look
+    // direction is yaw + π (the orbit yaw points behind the player)
+    let hy = 0, hp = 0;
+    if (this.anim !== 'sleep') {
+      const rel = ((this.yaw + Math.PI - this.ry + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      // glance only within a natural neck range; looking back at your own
+      // face (camera orbited to the front) keeps the head straight
+      hy = Math.abs(rel) > 1.6 ? 0 : THREE.MathUtils.clamp(rel, -1.15, 1.15);
+      hp = THREE.MathUtils.clamp(this.pitch * 0.8, -0.55, 0.7);
+    }
     return {
       x: this.pos.x, y: this.pos.y, z: this.pos.z,
       ry: this.ry, anim: this.anim, speed: this.speed,
+      hy, hp,
     };
   }
 }

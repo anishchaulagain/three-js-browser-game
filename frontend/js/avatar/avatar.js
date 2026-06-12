@@ -18,6 +18,8 @@ export class Avatar {
     this.anim = 'idle';
     this.speed = 0;
     this.phase = 0;
+    this.lookYaw = 0;   // head-tracking targets (relative to the body)
+    this.lookPitch = 0;
     this.time = Math.random() * 10;
     this.emotes = [];
     this._bubbleTimer = null;
@@ -190,6 +192,12 @@ export class Avatar {
     this.speed = speed;
   }
 
+  /** Point the head: yaw relative to the body, pitch up(−)/down(+). */
+  setLook(hy = 0, hp = 0) {
+    this.lookYaw = hy || 0;
+    this.lookPitch = hp || 0;
+  }
+
   update(dt) {
     this.time += dt;
     const a = this.anim;
@@ -272,8 +280,10 @@ export class Avatar {
     this.body.rotation.y = L(this.body.rotation.y, bodyRY);
     this.body.rotation.z = L(this.body.rotation.z, bodyRZ);
 
-    // little head tilt while idle, looking around
-    this.headGroup.rotation.y = a === 'idle' ? Math.sin(this.time * 0.6) * 0.18 : L(this.headGroup.rotation.y, 0);
+    // head tracks the look direction, plus a little wandering glance at rest
+    const sway = a === 'idle' ? Math.sin(this.time * 0.6) * 0.08 : 0;
+    this.headGroup.rotation.y = L(this.headGroup.rotation.y, a === 'sleep' ? 0 : this.lookYaw + sway);
+    this.headGroup.rotation.x = L(this.headGroup.rotation.x, a === 'sleep' ? 0 : this.lookPitch);
 
     // floating emotes
     for (let i = this.emotes.length - 1; i >= 0; i--) {
