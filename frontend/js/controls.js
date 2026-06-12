@@ -4,8 +4,10 @@ import { heightAt, WORLD_RADIUS } from './world/terrain.js';
 const PLAYER_RADIUS = 0.38;
 const WALK_SPEED = 4.2;
 const RUN_SPEED = 8;
+const CROUCH_SPEED = 1.9;
 const GRAVITY = 22;
 const JUMP_VELOCITY = 8;
+const BOW_TIME = 1.3;
 
 export class PlayerController {
   constructor(camera, dom, { colliders, cameraBlockers, isTyping, lockAllowed }) {
@@ -23,6 +25,8 @@ export class PlayerController {
     this.seated = null; // {exit:{x,z}, anim}
     this.vehicle = null; // {car, seat} — riding the couple car
     this.enabled = false;
+    this.dancing = false;
+    this.bowTimer = 0;
 
     this.yaw = Math.PI;
     this.pitch = 0.34;
@@ -36,6 +40,10 @@ export class PlayerController {
       if (this.isTyping()) return;
       this.keys[e.code] = true;
       if (e.code === 'KeyV' && this.enabled) this.firstPerson = !this.firstPerson;
+      if (this.enabled && !this.seated && !this.vehicle) {
+        if (e.code === 'KeyX') { this.dancing = !this.dancing; this.bowTimer = 0; }
+        if (e.code === 'KeyB' && this.grounded) { this.bowTimer = BOW_TIME; this.dancing = false; }
+      }
       if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
     });
     window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
@@ -86,6 +94,8 @@ export class PlayerController {
 
   /** Sit or lie at a fixed spot. y is the absolute root height for the pose. */
   sitAt({ x, z, y, ry, exit }, anim = 'sit') {
+    this.dancing = false;
+    this.bowTimer = 0;
     this.seated = { exit: exit || { x, z: z + 1 }, anim };
     this.pos.set(x, y, z);
     this.ry = ry || 0;
@@ -115,6 +125,8 @@ export class PlayerController {
       const sw = this.vehicle.car.seatWorld(this.vehicle.seat);
       this.pos.copy(sw);
       this.ry = this.vehicle.car.state.ry;
+      this.dancing = false;
+      this.bowTimer = 0;
       this.anim = 'sit';
       this.speed = 0;
       this.vy = 0;
@@ -138,8 +150,12 @@ export class PlayerController {
           .addScaledVector(fwd, f)
           .addScaledVector(right, r);
 
-        const running = this.keys.ShiftLeft || this.keys.ShiftRight;
-        const target = move.lengthSq() > 0 ? (running ? RUN_SPEED : WALK_SPEED) : 0;
+        const crouching = this.keys.KeyC && this.grounded;
+        if (move.lengthSq() > 0 || this.keys.Space) { this.dancing = false; this.bowTimer = 0; }
+        if (this.bowTimer > 0) this.bowTimer -= dt;
+
+        const running = (this.keys.ShiftLeft || this.keys.ShiftRight) && !crouching;
+        const target = move.lengthSq() > 0 ? (crouching ? CROUCH_SPEED : running ? RUN_SPEED : WALK_SPEED) : 0;
         this.speed += (target - this.speed) * Math.min(1, dt * 10);
         if (this.speed < 0.05) this.speed = 0;
 
@@ -185,6 +201,9 @@ export class PlayerController {
         }
 
         this.anim = !this.grounded ? 'jump'
+          : this.bowTimer > 0 ? 'bow'
+          : crouching ? 'crouch'
+          : this.dancing ? 'dance'
           : this.speed > 0.2 ? (running && this.speed > WALK_SPEED + 0.5 ? 'run' : 'walk')
           : 'idle';
       }
@@ -225,7 +244,9 @@ export class PlayerController {
     if (this.firstPerson) {
       const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
       const look = new THREE.Vector3(-Math.sin(this.yaw) * cp, -sp, -Math.cos(this.yaw) * cp);
-      const head = new THREE.Vector3(this.pos.x, this.pos.y + 1.78, this.pos.z);
+      // eyes drop while crouched
+      this._fpHead = (this._fpHead ?? 1.78) + ((this.anim === 'crouch' ? 1.32 : 1.78) - (this._fpHead ?? 1.78)) * Math.min(1, dt * 8);
+      const head = new THREE.Vector3(this.pos.x, this.pos.y + this._fpHead, this.pos.z);
       this.camera.position.copy(head);
       this._camPos.copy(head); // keep the lerp state in sync for a smooth exit
       this.camera.lookAt(head.add(look));
