@@ -16,7 +16,7 @@ import { interactionHandlers } from './interactions.js';
 import { CHEATS } from './cheats.js';
 import { SecureChannel } from './crypto.js';
 import {
-  SPAWNS, STATE_SEND_MS, CAR_SEND_MS, EMOTE_KEYS, HEART_DISTANCE, KISS_DISTANCE,
+  SPAWNS, STATE_SEND_MS, CAR_SEND_MS, EMOTE_KEYS, NUM_EMOJI, HEART_DISTANCE, KISS_DISTANCE,
   FLOWERS, POCKET_MAX, GIVE_DISTANCE,
 } from './config.js';
 
@@ -289,16 +289,21 @@ export class Game {
       else if (e.code === 'Backquote') { e.preventDefault(); this.ui.openCheat(); }
       else if (e.code === 'Enter' || e.code === 'KeyT') { e.preventDefault(); this.ui.openChat(); }
       else if (e.code === 'Escape' && this.ui.closetOpen) this.ui.closeCloset();
-      else if (EMOTE_KEYS[e.code]) {
-        const emoji = EMOTE_KEYS[e.code];
-        this.selfAvatar.emote(emoji);
-        this.net.sendEmote(emoji);
-        if (emoji === '😘' && this.partner && this.distanceToPartner() < KISS_DISTANCE) {
-          const g = this.partner.avatar.group.position;
-          this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 5, this.controller.pos.y);
-        }
+      else if (EMOTE_KEYS[e.code]) this._emote(EMOTE_KEYS[e.code]);
+      else if (e.shiftKey && NUM_EMOJI[e.code]) {
+        e.preventDefault();
+        this._emote(NUM_EMOJI[e.code]);
       }
     });
+  }
+
+  _emote(emoji) {
+    this.selfAvatar.emote(emoji);
+    this.net.sendEmote(emoji);
+    if (emoji === '😘' && this.partner && this.distanceToPartner() < KISS_DISTANCE) {
+      const g = this.partner.avatar.group.position;
+      this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 5, this.controller.pos.y);
+    }
   }
 
   _interact() {

@@ -1,4 +1,5 @@
 /** DOM / HUD manager — no three.js in here. */
+import { NUM_EMOJI } from './config.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -189,7 +190,17 @@ export class UI {
     const input = $('chat-input');
     input.addEventListener('keydown', (e) => {
       e.stopPropagation();
-      if (e.key === 'Enter') {
+      if (e.shiftKey && NUM_EMOJI[e.code]) {
+        // Shift+1…0 drops an emoji right at the cursor
+        e.preventDefault();
+        const emoji = NUM_EMOJI[e.code];
+        const max = input.maxLength > 0 ? input.maxLength : Infinity;
+        if (input.value.length + emoji.length > max) return;
+        const s = input.selectionStart ?? input.value.length;
+        const t = input.selectionEnd ?? s;
+        input.value = input.value.slice(0, s) + emoji + input.value.slice(t);
+        input.setSelectionRange(s + emoji.length, s + emoji.length);
+      } else if (e.key === 'Enter') {
         const text = input.value.trim();
         if (text) onSend(text);
         this.closeChat();
