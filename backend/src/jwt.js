@@ -1,9 +1,9 @@
 /** JWT helpers — sign/verify tokens and an Express auth middleware. */
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET, TOKEN_TTL } = require('./config');
+const { JWT_SECRET, JWT_SECRET_IS_EPHEMERAL, TOKEN_TTL } = require('./config');
 
-if (JWT_SECRET === 'dev-secret-change-me') {
-  console.warn('[auth] WARNING: using the default JWT secret — set JWT_SECRET in .env');
+if (JWT_SECRET_IS_EPHEMERAL) {
+  console.warn('[auth] WARNING: no JWT_SECRET in .env — using a random per-boot secret (sessions reset on every restart)');
 }
 
 function sign(user) {

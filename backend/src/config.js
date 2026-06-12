@@ -5,11 +5,14 @@ require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env'), quiet
 
 module.exports = {
   PORT: process.env.PORT || 3000,
-  /** tokens are signed with this — set a real secret in .env for production */
-  JWT_SECRET: process.env.JWT_SECRET || 'dev-secret-change-me',
+  /** tokens are signed with this — set a real secret in .env (without one, a
+      random per-boot secret is used and all sessions reset on restart) */
+  JWT_SECRET: process.env.JWT_SECRET || require('crypto').randomBytes(32).toString('hex'),
+  JWT_SECRET_IS_EPHEMERAL: !process.env.JWT_SECRET,
   TOKEN_TTL: '7d',
   ADMIN_USERNAME: process.env.ADMIN_USERNAME || 'admin',
-  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'admin1234',
+  /** no default — if unset, a random password is generated at seed time */
+  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || null,
   /** one full in-game day (morning → night → morning) = 2 real hours */
   DAY_LENGTH_MS: 2 * 60 * 60 * 1000,
   /** the whole point of this world — two. (override with MAX_PLAYERS in .env) */
