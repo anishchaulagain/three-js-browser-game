@@ -242,6 +242,17 @@ export class PlayerController {
 
   _updateCamera(dt) {
     if (this.firstPerson) {
+      if (this.anim === 'sleep') {
+        // lying on your back: the sleep pose folds the body backward, so the
+        // head rests behind the root, just above the pillow — gaze upward
+        const fwd = new THREE.Vector3(Math.sin(this.ry), 0, Math.cos(this.ry));
+        const eyes = new THREE.Vector3(this.pos.x, this.pos.y + 0.55, this.pos.z).addScaledVector(fwd, -1.55);
+        this.camera.position.copy(eyes);
+        this._camPos.copy(eyes);
+        // tipped slightly toward the feet (a dead-vertical gaze has no 'up')
+        this.camera.lookAt(eyes.x + fwd.x * 0.45, eyes.y + 1, eyes.z + fwd.z * 0.45);
+        return;
+      }
       const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
       const look = new THREE.Vector3(-Math.sin(this.yaw) * cp, -sp, -Math.cos(this.yaw) * cp);
       // eyes drop while crouched
