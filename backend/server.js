@@ -26,8 +26,7 @@ db.init()
     server.listen(PORT, () => {
       console.log('────────────────────────────────────────────');
       console.log('  Couple World is running');
-      console.log(`  Open http://localhost:${PORT} on two devices`);
-      console.log('  (only two hearts may enter)');
+      console.log(`  Open http://localhost:${PORT}`);
       console.log(`  accounts: ${db.mode === 'disabled' ? 'OFF — open mode (configure Postgres in .env)' : `ON (${db.mode})`}`);
       console.log('────────────────────────────────────────────');
     });

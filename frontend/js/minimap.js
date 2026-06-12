@@ -59,9 +59,9 @@ export class Minimap {
   }
 
   /**
-   * self: {x, z, ry, role} — partner: {x, z, role} | null — car: {x, z} | null
+   * self: {x, z, ry, role} — others: [{x, z, role}] — car: {x, z} | null
    */
-  update(dt, self, partner, car) {
+  update(dt, self, others, car) {
     this.time += dt;
     const g = this.ctx;
     g.clearRect(0, 0, this.size, this.size);
@@ -76,16 +76,16 @@ export class Minimap {
       g.fillText('🚗', this._mx(car.x), this._mz(car.z));
     }
 
-    // partner pin: pulsing ring + heart so they're easy to find
-    if (partner) {
-      const px = this._mx(partner.x), pz = this._mz(partner.z);
+    // other players: pulsing ring + heart so they're easy to find
+    for (const o of others || []) {
+      const px = this._mx(o.x), pz = this._mz(o.z);
       const pulse = 4 + Math.sin(this.time * 4) * 1.6;
-      g.strokeStyle = colorOf(partner.role);
+      g.strokeStyle = colorOf(o.role);
       g.lineWidth = 1.5;
       g.beginPath();
       g.arc(px, pz, pulse, 0, Math.PI * 2);
       g.stroke();
-      g.fillStyle = colorOf(partner.role);
+      g.fillStyle = colorOf(o.role);
       g.beginPath();
       g.arc(px, pz, 3, 0, Math.PI * 2);
       g.fill();

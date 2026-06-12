@@ -12,8 +12,9 @@
 const bcrypt = require('bcryptjs');
 const { ADMIN_USERNAME, ADMIN_PASSWORD } = require('./config');
 
-const usePostgres = !!(process.env.DATABASE_URL || process.env.PGDATABASE);
-const useMemory = !usePostgres && process.env.MEMORY_DB === '1';
+// explicit MEMORY_DB=1 (tests) wins even when .env configures Postgres
+const useMemory = process.env.MEMORY_DB === '1';
+const usePostgres = !useMemory && !!(process.env.DATABASE_URL || process.env.PGDATABASE);
 
 /* ---------- postgres driver ---------- */
 /**

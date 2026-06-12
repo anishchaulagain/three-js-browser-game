@@ -10,6 +10,7 @@
 process.env.MEMORY_DB = '1';
 process.env.PORT = '3789';
 process.env.JWT_SECRET = 'test-secret';
+process.env.ADMIN_USERNAME = 'admin';
 process.env.ADMIN_PASSWORD = 'admin1234';
 
 const assert = (cond, label) => {
@@ -109,16 +110,21 @@ async function main() {
   assert(j1.self.role === 'male' && j1.self.name === 'Romie' && j1.self.outfit === 4,
     'server enforces account gender, display name and saved outfit (client lies ignored)');
 
+  // same account joins again → the NEW session takes over, the old is kicked
   const dup = connect(romeoToken);
   await once(dup, 'welcome');
+  const oldKicked = once(s1, 'session_replaced');
   dup.emit('join', { x: 0, z: 3 });
-  const denied = await once(dup, 'join_denied');
-  assert(/already in the world/.test(denied.reason), 'same account cannot join twice');
-  dup.close();
+  const dupJoined = await once(dup, 'joined');
+  await oldKicked;
+  assert(dupJoined.self.role === 'male' && dupJoined.self.name === 'Romie',
+    'reconnecting replaces the old session (no ghost lockout)');
+  s1.close();
+  const s1b = dup; // romeo's live session from here on
 
   const s2 = connect(julietToken);
   await once(s2, 'welcome');
-  const partnerJoined = once(s1, 'player_joined');
+  const partnerJoined = once(s1b, 'player_joined');
   s2.emit('join', { x: 1, z: 3 });
   const j2 = await once(s2, 'joined');
   const seen = await partnerJoined;
@@ -127,12 +133,56 @@ async function main() {
   assert(seen.role === 'female' && seen.name === 'Jules', 'romeo sees juliet arrive');
 
   /* outfit changes persist to the account */
-  s1.emit('outfit', 2);
+  s1b.emit('outfit', 2);
   await new Promise((r2) => setTimeout(r2, 200));
   r = await api('/api/auth/me', { token: romeoToken });
   assert(r.data.user.outfit === 2, 'outfit change is saved to the account');
 
-  s1.close(); s2.close();
+  /* reconnect with a live ghost still works (newest session wins) */
+  const s1c = connect(romeoToken);
+  await once(s1c, 'welcome');
+  s1c.emit('join', { x: 0, z: 3 });
+  const rejoin = await once(s1c, 'joined');
+  assert(rejoin.self.role === 'male', 'reconnect evicts your own ghost and enters');
+
+  /* ---- multiplayer: a THIRD account joins (two males may coexist) ---- */
+  r = await api('/api/admin/users', {
+    method: 'POST', token: adminToken,
+    body: { username: 'paris', password: 'temp789', gender: 'male' },
+  });
+  assert(r.status === 201, 'admin created a third user (second male)');
+  r = await api('/api/auth/login', { method: 'POST', body: { username: 'paris', password: 'temp789' } });
+  const parisToken = r.data.token;
+  await api('/api/auth/change-password', {
+    method: 'POST', token: parisToken, body: { currentPassword: 'temp789', newPassword: 'parislove' },
+  });
+
+  const s3 = connect(parisToken);
+  await once(s3, 'welcome');
+  s3.emit('join', { x: 2, z: 3 });
+  const j3 = await once(s3, 'joined');
+  assert(j3.self.role === 'male' && j3.others.length === 2,
+    'third player joins — same gender as romeo, sees 2 others');
+
+  /* targeted E2E chat: juliet → romeo only; paris must NOT receive it */
+  let parisGotChat = false;
+  s3.on('chat', () => { parisGotChat = true; });
+  const romeoChat = once(s1c, 'chat');
+  s2.emit('chat', { to: rejoin.self.id, e: { n: 'bm9uY2U=', c: 'Y2lwaGVy' } });
+  const chat = await romeoChat;
+  await new Promise((r2) => setTimeout(r2, 250));
+  assert(chat.name === 'Jules' && !parisGotChat, 'chat routes only to its recipient');
+
+  /* targeted gift: paris → juliet only */
+  let romeoGotGift = false;
+  s1c.on('gift', () => { romeoGotGift = true; });
+  const julietGift = once(s2, 'gift');
+  s3.emit('gift', { to: j2.self.id, flower: 'rose' });
+  const gift = await julietGift;
+  await new Promise((r2) => setTimeout(r2, 250));
+  assert(gift.flower === 'rose' && !romeoGotGift, 'gifts route only to their recipient');
+
+  s1c.close(); s2.close(); s3.close();
   console.log('\nAUTH E2E PASSED');
   process.exit(0);
 }

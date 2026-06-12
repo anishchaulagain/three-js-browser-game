@@ -12,8 +12,8 @@ module.exports = {
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'admin1234',
   /** one full in-game day (morning → night → morning) = 2 real hours */
   DAY_LENGTH_MS: 2 * 60 * 60 * 1000,
-  /** the whole point of this world */
-  MAX_PLAYERS: 2,
+  /** how many people fit in the world (override with MAX_PLAYERS in .env) */
+  MAX_PLAYERS: Math.max(2, parseInt(process.env.MAX_PLAYERS, 10) || 8),
   /** max lengths for user-provided strings */
   LIMITS: {
     name: 16,

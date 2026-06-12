@@ -20,8 +20,11 @@ function registerSockets(io, players) {
     }
     socket.user = auth.user; // null in open mode; a DB row with accounts on
 
-    // Hard cap: if two players already live in the world, turn the visitor away.
-    if (players.isFull) {
+    // Hard cap: if two players already live in the world, turn the visitor
+    // away — unless it's one of THEM reconnecting (their join evicts the
+    // old session, so a "full" world never locks out its own couple).
+    const isReturning = auth.user && players.list().some((p) => p.userId === auth.user.id);
+    if (players.isFull && !isReturning) {
       socket.emit('world_full');
       socket.disconnect(true);
       return;
@@ -35,11 +38,6 @@ function registerSockets(io, players) {
 
     socket.on('join', (data) => {
       if (players.has(socket.id)) return;
-      if (players.isFull) {
-        socket.emit('world_full');
-        socket.disconnect(true);
-        return;
-      }
       const u = socket.user;
       if (u) {
         // accounts on: the DB decides who you are — not the client
@@ -47,9 +45,18 @@ function registerSockets(io, players) {
           socket.emit('join_denied', { reason: 'Your account has no character yet — ask your admin 💌' });
           return;
         }
-        if (players.takenRoles().includes(u.gender)) {
-          socket.emit('join_denied', { reason: 'Your character is already in the world on another device.' });
-          return;
+        // one live session per ACCOUNT: evict our own ghost/old session first,
+        // so a reload never bounces off a world we're still occupying
+        const existing = players.list().find((p) => p.userId === u.id);
+        if (existing) {
+          players.remove(existing.id);
+          const old = io.sockets.sockets.get(existing.id);
+          if (old) {
+            old.emit('session_replaced');
+            old.disconnect(true);
+          }
+          socket.broadcast.emit('player_left', { id: existing.id, name: existing.name });
+          console.log(`[join] ${u.username} reconnected — replaced their old session`);
         }
         data = {
           ...(data || {}),
@@ -57,13 +64,21 @@ function registerSockets(io, players) {
           name: u.displayName || u.username,
         };
       }
+      if (players.isFull) {
+        socket.emit('world_full');
+        socket.disconnect(true);
+        return;
+      }
       const player = players.add(socket.id, data || {});
       if (!player) {
         socket.emit('world_full');
         socket.disconnect(true);
         return;
       }
-      if (u) player.outfit = Math.max(0, Math.min(11, u.outfit | 0));
+      if (u) {
+        player.userId = u.id;
+        player.outfit = Math.max(0, Math.min(11, u.outfit | 0));
+      }
       socket.emit('joined', {
         self: player,
         others: players.othersOf(socket.id),
@@ -100,9 +115,12 @@ function registerSockets(io, players) {
       socket.broadcast.emit('emote', { id: socket.id, emoji: emoji.slice(0, LIMITS.emoji) });
     });
 
-    socket.on('gift', (flower) => {
-      if (!players.has(socket.id) || typeof flower !== 'string') return;
-      socket.broadcast.emit('gift', { id: socket.id, flower: flower.slice(0, 16) });
+    socket.on('gift', (msg) => {
+      // targeted: {to: socketId, flower} — only the recipient gets it
+      if (!players.has(socket.id) || !msg || typeof msg.flower !== 'string') return;
+      const target = typeof msg.to === 'string' && players.has(msg.to) && io.sockets.sockets.get(msg.to);
+      if (!target) return;
+      target.emit('gift', { id: socket.id, flower: msg.flower.slice(0, 16) });
     });
 
     socket.on('car_state', (s) => {
@@ -127,13 +145,15 @@ function registerSockets(io, players) {
       socket.broadcast.emit('car_seat', { id: socket.id, seat: p.carSeat });
     });
 
-    socket.on('chat', (env) => {
-      // E2E encrypted: env = {n: nonce, c: ciphertext} (base64). The server
-      // cannot read the message — it only checks shape/size and relays it.
+    socket.on('chat', (msg) => {
+      // E2E encrypted per recipient: {to: socketId, e: {n, c}} — the sender
+      // encrypts separately for every peer; the server just routes blindly.
       const p = players.get(socket.id);
-      if (!p || !env || typeof env.n !== 'string' || typeof env.c !== 'string') return;
-      if (env.n.length > 48 || env.c.length > 800) return;
-      socket.broadcast.emit('chat', { id: socket.id, name: p.name, e: { n: env.n, c: env.c } });
+      if (!p || !msg || !msg.e || typeof msg.e.n !== 'string' || typeof msg.e.c !== 'string') return;
+      if (msg.e.n.length > 48 || msg.e.c.length > 800) return;
+      const target = typeof msg.to === 'string' && players.has(msg.to) && io.sockets.sockets.get(msg.to);
+      if (!target) return;
+      target.emit('chat', { id: socket.id, name: p.name, e: { n: msg.e.n, c: msg.e.c } });
     });
 
     socket.on('disconnect', () => {

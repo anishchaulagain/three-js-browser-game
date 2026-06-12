@@ -22,6 +22,7 @@ export class Network {
     this.onRoles = null;
     this.onDenied = null;
     this.onAuthFailed = null;
+    this.onReplaced = null;
 
     this.socket.on('welcome', (d) => {
       this._syncTime(d);
@@ -44,6 +45,7 @@ export class Network {
     this.socket.on('roles', (d) => this.onRoles && this.onRoles(d));
     this.socket.on('join_denied', (d) => this.onDenied && this.onDenied(d));
     this.socket.on('auth_failed', (d) => this.onAuthFailed && this.onAuthFailed(d));
+    this.socket.on('session_replaced', () => this.onReplaced && this.onReplaced());
   }
 
   _syncTime(d) {
@@ -71,9 +73,10 @@ export class Network {
   sendState(s) { this.socket.emit('state', s); }
   sendOutfit(i) { this.socket.emit('outfit', i); }
   sendEmote(e) { this.socket.emit('emote', e); }
-  sendGift(flower) { this.socket.emit('gift', flower); }
+  /** payload = {to: peerId, flower} */
+  sendGift(payload) { this.socket.emit('gift', payload); }
   sendCarState(s) { this.socket.emit('car_state', s); }
   sendCarSeat(seat) { this.socket.emit('car_seat', seat); }
-  /** envelope = {n, c} — already encrypted; plaintext never goes on the wire */
-  sendChat(envelope) { this.socket.emit('chat', envelope); }
+  /** msg = {to: peerId, e: {n, c}} — encrypted per recipient; plaintext never goes on the wire */
+  sendChat(msg) { this.socket.emit('chat', msg); }
 }

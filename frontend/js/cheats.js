@@ -9,8 +9,8 @@ export const CHEATS = {
       game.ui.toast("You're already in the Beast 😉", 2200);
       return;
     }
-    if (game.partnerCarSeat) {
-      game.ui.toast('Your love is using the car right now 😅', 2400);
+    if ([...game.remotes.values()].some((r) => r.carSeat)) {
+      game.ui.toast('Someone is using the car right now 😅', 2400);
       return;
     }
     const c = game.controller;
