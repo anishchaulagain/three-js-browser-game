@@ -142,6 +142,13 @@ export async function runAuthFlow() {
     }
   }
   if (!user) ({ token, user, loginPassword } = await loginScreen());
+
+  // admins don't have an in-game character — their place is the dashboard
+  if (user.role === 'admin') {
+    location.href = '/admin';
+    return new Promise(() => {}); // navigation takes over
+  }
+
   if (user.mustChangePassword || !user.firstLoginDone) {
     user = await setupScreen(token, user, loginPassword);
   }

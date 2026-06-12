@@ -15,6 +15,11 @@ function registerRoutes(app, players) {
   app.use('/api/auth', createAuthRouter());
   app.use('/api/admin', createAdminRouter());
 
+  // the admin dashboard lives at a clean, separate route
+  app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', '..', 'frontend', 'admin.html'));
+  });
+
   app.use(express.static(path.join(__dirname, '..', '..', 'frontend')));
 }
 

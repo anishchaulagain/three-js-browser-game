@@ -35,13 +35,26 @@
   <!-- sign in -->
   <div class="panel" id="login-panel">
     <h1>🛠️ Admin — Our Little World</h1>
-    <p class="sub">Sign in with an admin account to manage the couple's users.</p>
+    <p class="sub">Sign in with an admin account to manage the couple's users. Players can't enter here.</p>
     <div class="row">
-      <input id="login-user" placeholder="Username" />
+      <input id="login-user" placeholder="Username" style="width:240px" />
       <input id="login-pass" type="password" placeholder="Password" />
       <button id="login-btn">Sign in 🔐</button>
     </div>
     <div id="login-err" class="err hidden"></div>
+  </div>
+
+  <!-- forced password change on first sign-in -->
+  <div class="panel hidden" id="pw-panel">
+    <h1>🔑 Set your admin password</h1>
+    <p class="sub">First sign-in — replace the temporary password before continuing.</p>
+    <div class="row">
+      <input id="pw-current" type="password" placeholder="Current password" class="hidden" />
+      <input id="pw-new1" type="password" placeholder="New password (min 6)" />
+      <input id="pw-new2" type="password" placeholder="Repeat new password" />
+      <button id="pw-btn">Save 🔒</button>
+    </div>
+    <div id="pw-err" class="err hidden"></div>
   </div>
 
   <!-- user management -->
@@ -49,7 +62,8 @@
     <div class="row">
       <div>
         <h1>👥 Users</h1>
-        <p class="sub">Create the two lovebirds, set their character, reset passwords.</p>
+        <p class="sub">Create the two lovebirds, set their character, reset passwords.
+          <span id="world-status"></span> · <a href="/" target="_blank" style="color:#c2387f">open the game →</a></p>
       </div>
       <button class="ghost right" id="logout-btn">Sign out</button>
     </div>
@@ -144,12 +158,40 @@
 
     async function refresh() {
       renderUsers((await api('/api/admin/users')).users);
+      try {
+        const s = await api('/api/status');
+        $('world-status').textContent = `· ${s.players}/2 in the world right now`;
+      } catch { /* status is decorative */ }
     }
 
     async function enter() {
       $('login-panel').classList.add('hidden');
+      $('pw-panel').classList.add('hidden');
       $('admin-panel').classList.remove('hidden');
       await refresh();
+    }
+
+    /** first sign-in: force a real password before showing the dashboard */
+    function showPasswordPanel(currentPassword) {
+      $('login-panel').classList.add('hidden');
+      $('pw-panel').classList.remove('hidden');
+      $('pw-current').classList.toggle('hidden', !!currentPassword); // resumed sessions must type it
+      $('pw-btn').onclick = async () => {
+        $('pw-err').classList.add('hidden');
+        try {
+          const p1 = $('pw-new1').value, p2 = $('pw-new2').value;
+          if (p1.length < 6) throw new Error('new password must be at least 6 characters');
+          if (p1 !== p2) throw new Error('passwords do not match');
+          await api('/api/auth/change-password', 'POST', {
+            currentPassword: currentPassword || $('pw-current').value,
+            newPassword: p1,
+          });
+          await enter();
+        } catch (e) {
+          $('pw-err').textContent = e.message;
+          $('pw-err').classList.remove('hidden');
+        }
+      };
     }
 
     $('login-btn').onclick = async () => {
@@ -162,11 +204,8 @@
         if (d.user.role !== 'admin') throw new Error('that account is not an admin');
         token = d.token;
         sessionStorage.setItem('cw_admin_token', token);
-        if (d.user.mustChangePassword) {
-          const pw = prompt('First sign-in: choose a NEW admin password (min 6 chars):');
-          if (pw) await api('/api/auth/change-password', 'POST', { currentPassword: $('login-pass').value, newPassword: pw });
-        }
-        await enter();
+        if (d.user.mustChangePassword) showPasswordPanel($('login-pass').value);
+        else await enter();
       } catch (e) {
         $('login-err').textContent = e.message;
         $('login-err').classList.remove('hidden');
@@ -191,10 +230,16 @@
     };
 
     // resume an admin session if the token still works
-    if (token) api('/api/auth/me').then((d) => { if (d.user.role === 'admin') enter(); }).catch(() => {
-      sessionStorage.removeItem('cw_admin_token');
-      token = null;
-    });
+    if (token) {
+      api('/api/auth/me').then((d) => {
+        if (d.user.role !== 'admin') throw new Error('not admin');
+        if (d.user.mustChangePassword) showPasswordPanel(null); // must type current password
+        else enter();
+      }).catch(() => {
+        sessionStorage.removeItem('cw_admin_token');
+        token = null;
+      });
+    }
   </script>
 </body>
 </html>
