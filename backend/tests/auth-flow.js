@@ -12,6 +12,7 @@ process.env.PORT = '3789';
 process.env.JWT_SECRET = 'test-secret';
 process.env.ADMIN_USERNAME = 'admin';
 process.env.ADMIN_PASSWORD = 'admin1234';
+process.env.MAX_PLAYERS = '3'; // routing tests use 3 players; default cap is 2
 
 const assert = (cond, label) => {
   if (!cond) { console.error('✗', label); process.exit(1); }
@@ -181,6 +182,20 @@ async function main() {
   const gift = await julietGift;
   await new Promise((r2) => setTimeout(r2, 250));
   assert(gift.flower === 'rose' && !romeoGotGift, 'gifts route only to their recipient');
+
+  /* the cap holds: with the world full, a NEW account is turned away */
+  r = await api('/api/admin/users', {
+    method: 'POST', token: adminToken,
+    body: { username: 'extra', password: 'temp000', gender: 'female' },
+  });
+  r = await api('/api/auth/login', { method: 'POST', body: { username: 'extra', password: 'temp000' } });
+  const extra = connect(r.data.token);
+  const outcome = await Promise.race([
+    once(extra, 'world_full').then(() => 'turned_away'),
+    new Promise((r2) => setTimeout(() => r2('timeout'), 3000)),
+  ]);
+  assert(outcome === 'turned_away', 'a new account beyond MAX_PLAYERS is turned away');
+  extra.close();
 
   s1c.close(); s2.close(); s3.close();
   console.log('\nAUTH E2E PASSED');
