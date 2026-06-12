@@ -40,14 +40,14 @@ const SECTIONS = [
   function zigzagBeams(rng) {
     const pads = [];
     for (let i = 0; i < 4; i++) {
-      pads.push(P((i % 2 ? 1 : -1) + jit(rng), -3.5 + i * 2.4, 1.1 + i * 1.1, 8, 1.1));
+      pads.push(P((i % 2 ? 1 : -1) + jit(rng), -3.5 + i * 2.3, 1.0 + i * 0.95, 8, 1.1));
     }
-    pads.push(P(5, 3, 5.3, 2, 2), P(5, -0.5, 6.1, 2, 2));
+    pads.push(P(5, 2.5, 4.8, 2, 2), P(5, -0.3, 5.7, 2, 2), P(5, -3, 6.4, 2, 2));
     return pads;
   },
   function pillarHop(rng) {
-    const route = [[-5, -2], [-4.5, 1], [-2, 3.5], [1, 4.5], [3.5, 3], [4.5, 0.5], [5, -2.5]];
-    return route.map(([x, z], i) => P(x + jit(rng) * 0.6, z + jit(rng) * 0.6, 1 + i * 0.9, 1.5, 1.5));
+    const route = [[-5, -2], [-4.6, 0.8], [-2.6, 2.8], [-0.2, 4.2], [2.2, 3.8], [4, 2], [4.7, -0.4], [5, -2.8]];
+    return route.map(([x, z], i) => P(x + jit(rng) * 0.6, z + jit(rng) * 0.6, 1 + i * 0.78, 1.7, 1.7));
   },
   function centerClimb(rng) {
     return [
@@ -58,14 +58,15 @@ const SECTIONS = [
     ];
   },
   function gapLedges(rng) {
-    // wider gaps — a running jump clears them, a careful walk-jump just barely
+    // the long-jump section — gaps stay walk-jumpable, runs make them trivial
     return [
-      P(-5, -1 + jit(rng), 1, 2.4, 3),
-      P(-4.5, 4 + jit(rng), 2, 3, 2.4),
-      P(0 + jit(rng), 4.5, 3, 3.2, 2.4),
-      P(4.5, 4 + jit(rng), 4, 2.4, 3),
-      P(4.7, -0.5 + jit(rng), 5.1, 2.4, 3),
-      P(5, -3.2, 6.1, 2, 2.4),
+      P(-5, -0.8 + jit(rng), 0.95, 2.6, 3.2),
+      P(-4.6, 3.5 + jit(rng), 1.9, 3, 2.6),
+      P(-0.4 + jit(rng), 4.4, 2.85, 3.4, 2.4),
+      P(3.9, 4.2 + jit(rng), 3.8, 3, 2.6),
+      P(4.7, 0.2 + jit(rng), 4.75, 2.4, 3.2),
+      P(5, -3.3, 5.7, 2, 2.6),
+      P(2.6, -4.7, 6.35, 2.4, 2.4),
     ];
   },
   function checkerHop(rng) {
@@ -92,7 +93,7 @@ export function towerPads(round) {
   for (let s = 0; s < STOREYS; s++) {
     const gen = SECTIONS[Math.floor(rng() * SECTIONS.length)];
     for (const pad of gen(rng)) pads.push({ ...rot(pad, s), y: rot(pad, s).y + s * STOREY_H });
-    pads.push({ ...rot(P(5, -5, 6.85, 2.8, 2.8), s), y: 6.85 + s * STOREY_H }); // shared exit
+    pads.push({ ...rot(P(5, -5, 7, 2.8, 2.8), s), y: 7 + s * STOREY_H }); // shared exit, flush with the next storey
   }
   return pads;
 }

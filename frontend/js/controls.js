@@ -6,8 +6,10 @@ const WALK_SPEED = 4.2;
 const RUN_SPEED = 8;
 const CROUCH_SPEED = 1.9;
 const GRAVITY = 22;
-const JUMP_VELOCITY = 8;
+const JUMP_VELOCITY = 8.5;
 const BOW_TIME = 1.3;
+const JUMP_BUFFER = 0.16; // Space tapped this early still jumps on landing
+const COYOTE_TIME = 0.12; // jump still works this long after leaving a ledge
 
 export class PlayerController {
   constructor(camera, dom, { colliders, cameraBlockers, isTyping, lockAllowed }) {
@@ -27,6 +29,8 @@ export class PlayerController {
     this.enabled = false;
     this.dancing = false;
     this.bowTimer = 0;
+    this._jumpBuf = 0;
+    this._coyote = 0;
 
     this.yaw = Math.PI;
     this.pitch = 0.34;
@@ -39,6 +43,7 @@ export class PlayerController {
     window.addEventListener('keydown', (e) => {
       if (this.isTyping()) return;
       this.keys[e.code] = true;
+      if (e.code === 'Space') this._jumpBuf = JUMP_BUFFER; // buffered — fires on landing
       if (e.code === 'KeyV' && this.enabled) this.firstPerson = !this.firstPerson;
       if (this.enabled && !this.seated && !this.vehicle) {
         if (e.code === 'KeyX') { this.dancing = !this.dancing; this.bowTimer = 0; }
@@ -181,9 +186,15 @@ export class PlayerController {
           this.ry += d * Math.min(1, dt * 12);
         }
 
-        if (this.keys.Space && this.grounded) {
+        // forgiving jump: buffered presses + coyote time
+        this._jumpBuf = Math.max(0, this._jumpBuf - dt);
+        if (this.grounded) this._coyote = COYOTE_TIME;
+        else this._coyote = Math.max(0, this._coyote - dt);
+        if ((this.keys.Space || this._jumpBuf > 0) && (this.grounded || this._coyote > 0)) {
           this.vy = JUMP_VELOCITY;
           this.grounded = false;
+          this._jumpBuf = 0;
+          this._coyote = 0;
         }
 
         this._collide();
