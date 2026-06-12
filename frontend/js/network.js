@@ -19,6 +19,7 @@ export class Network {
     this.onGift = null;
     this.onCarState = null;
     this.onCarSeat = null;
+    this.onTheater = null;
     this.onChat = null;
     this.onLeft = null;
     this.onFull = null;
@@ -41,6 +42,7 @@ export class Network {
     this.socket.on('emote', (d) => this.onEmote && this.onEmote(d));
     this.socket.on('gift', (d) => this.onGift && this.onGift(d));
     this.socket.on('car_state', (d) => this.onCarState && this.onCarState(d));
+    this.socket.on('theater', (d) => this.onTheater && this.onTheater(d));
     this.socket.on('car_seat', (d) => this.onCarSeat && this.onCarSeat(d));
     this.socket.on('chat', (d) => this.onChat && this.onChat(d));
     this.socket.on('player_left', (d) => this.onLeft && this.onLeft(d));
@@ -55,6 +57,11 @@ export class Network {
     if (typeof d.serverNow === 'number') this.offset = d.serverNow - Date.now();
     if (typeof d.worldStart === 'number') this.worldStart = d.worldStart;
     if (typeof d.dayLength === 'number') this.dayLength = d.dayLength;
+  }
+
+  /** the server's clock, right now (ms) */
+  serverNow() {
+    return Date.now() + this.offset;
   }
 
   /** ms elapsed since the world began (server-synced) */
@@ -80,6 +87,8 @@ export class Network {
   sendGift(payload) { this.socket.emit('gift', payload); }
   sendCarState(s) { this.socket.emit('car_state', s); }
   sendCarSeat(seat) { this.socket.emit('car_seat', seat); }
+  /** s = {v: videoId, playing, t seconds} */
+  sendTheater(s) { this.socket.emit('theater', s); }
   /** msg = {to: peerId, e: {n, c}} — encrypted per recipient; plaintext never goes on the wire */
   sendChat(msg) { this.socket.emit('chat', msg); }
 }

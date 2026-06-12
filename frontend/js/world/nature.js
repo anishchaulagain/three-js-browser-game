@@ -111,7 +111,7 @@ export function buildNature(ctx) {
 
   /* ---- scatter: trees, wild flowers, rocks ---- */
   function spotIsClear(x, z) {
-    if (x > H.minX - 4 && x < H.maxX + 4 && z > H.minZ - 5 && z < H.maxZ + 6) return false; // house + yard
+    if (x > H.minX - 12 && x < H.maxX + 4 && z > H.minZ - 5 && z < H.maxZ + 6) return false; // house + theater annex + yard
     if (Math.hypot(x - POND.x, z - POND.z) < POND.r + 3) return false;
     if (Math.abs(x) < 6 && z > -21 && z < 120) return false;                // path + road to the city
     if (Math.hypot(x - PICNIC.x, z - PICNIC.z) < 6) return false;

@@ -157,12 +157,19 @@ async function init() {
   if (!driver) return;
   await driver.init();
   if ((await driver.countUsers()) === 0) {
+    // no insecure default: without ADMIN_PASSWORD in .env, generate one and
+    // print it exactly once — it must be changed on first sign-in anyway
+    const password = ADMIN_PASSWORD ||
+      require('crypto').randomBytes(9).toString('base64url');
     await driver.createUser({
       username: ADMIN_USERNAME,
-      passwordHash: bcrypt.hashSync(ADMIN_PASSWORD, 10),
+      passwordHash: bcrypt.hashSync(password, 10),
       role: 'admin',
     });
     console.log(`[auth] seeded admin account "${ADMIN_USERNAME}" (must change password on first sign-in)`);
+    if (!ADMIN_PASSWORD) {
+      console.log(`[auth] generated one-time admin password: ${password}`);
+    }
   }
 }
 

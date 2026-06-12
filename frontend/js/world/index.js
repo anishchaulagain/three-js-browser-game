@@ -77,6 +77,7 @@ export function createWorld(scene) {
     mapFeatures: ctx.mapFeatures,
     car,
     tower,
+    theaterScreen: ctx.theaterScreen, // where the home-theater video lives
     update,
     isInsideHouse: house.isInsideHouse,
   };
