@@ -18,6 +18,8 @@ export class Avatar {
     this.anim = 'idle';
     this.speed = 0;
     this.phase = 0;
+    this.lookYaw = 0;   // head-tracking targets (relative to the body)
+    this.lookPitch = 0;
     this.time = Math.random() * 10;
     this.emotes = [];
     this._bubbleTimer = null;
@@ -190,13 +192,20 @@ export class Avatar {
     this.speed = speed;
   }
 
+  /** Point the head: yaw relative to the body, pitch up(−)/down(+). */
+  setLook(hy = 0, hp = 0) {
+    this.lookYaw = hy || 0;
+    this.lookPitch = hp || 0;
+  }
+
   update(dt) {
     this.time += dt;
     const a = this.anim;
 
     // pose targets
     let hl = 0, hr = 0, kl = 0, kr = 0, sl = 0, sr = 0;
-    let bodyY = 0, bodyRX = 0;
+    let zl = 0, zr = 0; // shoulder z (arms raised sideways — dancing)
+    let bodyY = 0, bodyRX = 0, bodyRY = 0, bodyRZ = 0;
 
     if (a === 'walk' || a === 'run') {
       const run = a === 'run';
@@ -224,6 +233,36 @@ export class Avatar {
       hl = hr = -0.45;
       kl = kr = 0.85;
       sl = sr = -2.6;
+    } else if (a === 'crouch') {
+      // low squat; shuffles the legs when moving while crouched
+      const shuffle = this.speed > 0.3 ? Math.sin((this.phase += dt * 8)) * 0.28 : 0;
+      hl = -1.0 + shuffle;
+      hr = -1.0 - shuffle;
+      kl = kr = 1.55;
+      sl = sr = -0.35;
+      bodyY = -0.24;
+    } else if (a === 'bow') {
+      // courteous bow: torso bends forward, legs counter-rotate to stay planted
+      bodyRX = 0.6;
+      hl = hr = -0.6;
+      kl = kr = 0.15;
+      sl = sr = 0.4;
+      bodyY = 0.12;
+    } else if (a === 'dance') {
+      // disco loop: alternating arm raises, stepping feet, hip sway and a twist
+      this.phase += dt * 6.2;
+      const p = Math.sin(this.phase), q = Math.cos(this.phase);
+      zl = -0.9 + p * 0.7;
+      zr = 0.9 + p * 0.7;
+      sl = -0.5 + q * 0.3;
+      sr = -0.5 - q * 0.3;
+      hl = Math.max(0, p) * 0.5;
+      hr = Math.max(0, -p) * 0.5;
+      kl = Math.max(0, p) * 0.8;
+      kr = Math.max(0, -p) * 0.8;
+      bodyY = Math.abs(q) * 0.06;
+      bodyRY = p * 0.18;
+      bodyRZ = p * 0.06;
     }
 
     const k = Math.min(1, dt * 12);
@@ -234,11 +273,17 @@ export class Avatar {
     this.legs[1].knee.rotation.x = L(this.legs[1].knee.rotation.x, kr);
     this.arms[0].shoulder.rotation.x = L(this.arms[0].shoulder.rotation.x, sl);
     this.arms[1].shoulder.rotation.x = L(this.arms[1].shoulder.rotation.x, sr);
+    this.arms[0].shoulder.rotation.z = L(this.arms[0].shoulder.rotation.z, zl);
+    this.arms[1].shoulder.rotation.z = L(this.arms[1].shoulder.rotation.z, zr);
     this.body.position.y = L(this.body.position.y, bodyY);
     this.body.rotation.x = L(this.body.rotation.x, bodyRX);
+    this.body.rotation.y = L(this.body.rotation.y, bodyRY);
+    this.body.rotation.z = L(this.body.rotation.z, bodyRZ);
 
-    // little head tilt while idle, looking around
-    this.headGroup.rotation.y = a === 'idle' ? Math.sin(this.time * 0.6) * 0.18 : L(this.headGroup.rotation.y, 0);
+    // head tracks the look direction, plus a little wandering glance at rest
+    const sway = a === 'idle' ? Math.sin(this.time * 0.6) * 0.08 : 0;
+    this.headGroup.rotation.y = L(this.headGroup.rotation.y, a === 'sleep' ? 0 : this.lookYaw + sway);
+    this.headGroup.rotation.x = L(this.headGroup.rotation.x, a === 'sleep' ? 0 : this.lookPitch);
 
     // floating emotes
     for (let i = this.emotes.length - 1; i >= 0; i--) {

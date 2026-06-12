@@ -42,6 +42,8 @@ class PlayerManager {
       ry: Math.PI,
       anim: 'idle',
       speed: 0,
+      hy: 0, // head look yaw (relative to the body)
+      hp: 0, // head look pitch
     };
     this.players.set(id, player);
     return player;
@@ -57,6 +59,8 @@ class PlayerManager {
     if (typeof s.ry === 'number') p.ry = s.ry;
     if (typeof s.anim === 'string') p.anim = s.anim.slice(0, LIMITS.anim);
     if (typeof s.speed === 'number') p.speed = s.speed;
+    if (typeof s.hy === 'number') p.hy = Math.max(-1.6, Math.min(1.6, s.hy));
+    if (typeof s.hp === 'number') p.hp = Math.max(-1, Math.min(1, s.hp));
     return p;
   }
 

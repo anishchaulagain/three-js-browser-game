@@ -60,6 +60,7 @@ function registerSockets(io, players) {
       if (!p) return;
       socket.broadcast.emit('player_state', {
         id: socket.id, x: p.x, y: p.y, z: p.z, ry: p.ry, anim: p.anim, speed: p.speed,
+        hy: p.hy, hp: p.hp,
       });
     });
 

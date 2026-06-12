@@ -4,8 +4,10 @@ import { heightAt, WORLD_RADIUS } from './world/terrain.js';
 const PLAYER_RADIUS = 0.38;
 const WALK_SPEED = 4.2;
 const RUN_SPEED = 8;
+const CROUCH_SPEED = 1.9;
 const GRAVITY = 22;
 const JUMP_VELOCITY = 8;
+const BOW_TIME = 1.3;
 
 export class PlayerController {
   constructor(camera, dom, { colliders, cameraBlockers, isTyping, lockAllowed }) {
@@ -23,6 +25,8 @@ export class PlayerController {
     this.seated = null; // {exit:{x,z}, anim}
     this.vehicle = null; // {car, seat} — riding the couple car
     this.enabled = false;
+    this.dancing = false;
+    this.bowTimer = 0;
 
     this.yaw = Math.PI;
     this.pitch = 0.34;
@@ -36,6 +40,10 @@ export class PlayerController {
       if (this.isTyping()) return;
       this.keys[e.code] = true;
       if (e.code === 'KeyV' && this.enabled) this.firstPerson = !this.firstPerson;
+      if (this.enabled && !this.seated && !this.vehicle) {
+        if (e.code === 'KeyX') { this.dancing = !this.dancing; this.bowTimer = 0; }
+        if (e.code === 'KeyB' && this.grounded) { this.bowTimer = BOW_TIME; this.dancing = false; }
+      }
       if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
     });
     window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
@@ -86,12 +94,19 @@ export class PlayerController {
 
   /** Sit or lie at a fixed spot. y is the absolute root height for the pose. */
   sitAt({ x, z, y, ry, exit }, anim = 'sit') {
+    this.dancing = false;
+    this.bowTimer = 0;
     this.seated = { exit: exit || { x, z: z + 1 }, anim };
     this.pos.set(x, y, z);
     this.ry = ry || 0;
     this.vy = 0;
     this.anim = anim;
     this.speed = 0;
+    if (anim === 'sleep' && this.firstPerson) {
+      // open your eyes looking up, tipped a little toward your feet
+      this.yaw = this.ry + Math.PI;
+      this.pitch = -1.1;
+    }
   }
 
   standUp() {
@@ -100,6 +115,8 @@ export class PlayerController {
     this.pos.set(e.x, heightAt(e.x, e.z), e.z);
     this.seated = null;
     this.anim = 'idle';
+    // back within the standing camera's pitch range (sleep allows steeper)
+    this.pitch = THREE.MathUtils.clamp(this.pitch, this.firstPerson ? -1.25 : -0.5, 1.25);
   }
 
   _moveInput() {
@@ -115,6 +132,8 @@ export class PlayerController {
       const sw = this.vehicle.car.seatWorld(this.vehicle.seat);
       this.pos.copy(sw);
       this.ry = this.vehicle.car.state.ry;
+      this.dancing = false;
+      this.bowTimer = 0;
       this.anim = 'sit';
       this.speed = 0;
       this.vy = 0;
@@ -138,8 +157,12 @@ export class PlayerController {
           .addScaledVector(fwd, f)
           .addScaledVector(right, r);
 
-        const running = this.keys.ShiftLeft || this.keys.ShiftRight;
-        const target = move.lengthSq() > 0 ? (running ? RUN_SPEED : WALK_SPEED) : 0;
+        const crouching = this.keys.KeyC && this.grounded;
+        if (move.lengthSq() > 0 || this.keys.Space) { this.dancing = false; this.bowTimer = 0; }
+        if (this.bowTimer > 0) this.bowTimer -= dt;
+
+        const running = (this.keys.ShiftLeft || this.keys.ShiftRight) && !crouching;
+        const target = move.lengthSq() > 0 ? (crouching ? CROUCH_SPEED : running ? RUN_SPEED : WALK_SPEED) : 0;
         this.speed += (target - this.speed) * Math.min(1, dt * 10);
         if (this.speed < 0.05) this.speed = 0;
 
@@ -185,6 +208,9 @@ export class PlayerController {
         }
 
         this.anim = !this.grounded ? 'jump'
+          : this.bowTimer > 0 ? 'bow'
+          : crouching ? 'crouch'
+          : this.dancing ? 'dance'
           : this.speed > 0.2 ? (running && this.speed > WALK_SPEED + 0.5 ? 'run' : 'walk')
           : 'idle';
       }
@@ -223,9 +249,24 @@ export class PlayerController {
 
   _updateCamera(dt) {
     if (this.firstPerson) {
+      if (this.anim === 'sleep') {
+        // lying on your back: the sleep pose folds the body backward, so the
+        // head rests behind the root, just above the pillow
+        const fwd = new THREE.Vector3(Math.sin(this.ry), 0, Math.cos(this.ry));
+        const eyes = new THREE.Vector3(this.pos.x, this.pos.y + 0.55, this.pos.z).addScaledVector(fwd, -1.55);
+        this.camera.position.copy(eyes);
+        this._camPos.copy(eyes);
+        // free look from the pillow — clamped so you can't stare into the mattress
+        this.pitch = Math.min(this.pitch, -0.15);
+        const lp = Math.cos(this.pitch), lq = Math.sin(this.pitch);
+        this.camera.lookAt(eyes.x - Math.sin(this.yaw) * lp, eyes.y - lq, eyes.z - Math.cos(this.yaw) * lp);
+        return;
+      }
       const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
       const look = new THREE.Vector3(-Math.sin(this.yaw) * cp, -sp, -Math.cos(this.yaw) * cp);
-      const head = new THREE.Vector3(this.pos.x, this.pos.y + 1.78, this.pos.z);
+      // eyes drop while crouched
+      this._fpHead = (this._fpHead ?? 1.78) + ((this.anim === 'crouch' ? 1.32 : 1.78) - (this._fpHead ?? 1.78)) * Math.min(1, dt * 8);
+      const head = new THREE.Vector3(this.pos.x, this.pos.y + this._fpHead, this.pos.z);
       this.camera.position.copy(head);
       this._camPos.copy(head); // keep the lerp state in sync for a smooth exit
       this.camera.lookAt(head.add(look));
@@ -257,9 +298,20 @@ export class PlayerController {
   }
 
   state() {
+    // where the head is looking, relative to the body — the camera's look
+    // direction is yaw + π (the orbit yaw points behind the player)
+    let hy = 0, hp = 0;
+    if (this.anim !== 'sleep') {
+      const rel = ((this.yaw + Math.PI - this.ry + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      // glance only within a natural neck range; looking back at your own
+      // face (camera orbited to the front) keeps the head straight
+      hy = Math.abs(rel) > 1.6 ? 0 : THREE.MathUtils.clamp(rel, -1.15, 1.15);
+      hp = THREE.MathUtils.clamp(this.pitch * 0.8, -0.55, 0.7);
+    }
     return {
       x: this.pos.x, y: this.pos.y, z: this.pos.z,
       ry: this.ry, anim: this.anim, speed: this.speed,
+      hy, hp,
     };
   }
 }

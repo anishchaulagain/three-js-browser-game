@@ -187,6 +187,7 @@ export class Game {
       this.partner.target = { x: s.x, y: s.y, z: s.z, ry: s.ry };
       this.partner.anim = s.anim;
       this.partner.speed = s.speed;
+      this.partner.look = { hy: s.hy || 0, hp: s.hp || 0 };
     };
 
     net.onOutfit = (d) => {
@@ -270,6 +271,7 @@ export class Game {
       id: p.id, role: p.role, name: p.name, outfit: p.outfit, avatar,
       target: { x: p.x, y: p.y, z: p.z, ry: p.ry },
       anim: p.anim || 'idle', speed: p.speed || 0,
+      look: { hy: p.hy || 0, hp: p.hp || 0 },
     };
     this.partnerCarSeat = p.carSeat || null;
     this.ui.setPartnerStatus(`❤️ ${p.name} is here`);
@@ -349,6 +351,7 @@ export class Game {
       const car = this.world.car;
       g.position.copy(car.seatWorld(this.partnerCarSeat));
       g.rotation.y = car.state.ry;
+      p.avatar.setLook(p.look.hy, p.look.hp); // passengers look around too
       p.avatar.setAnim('sit', 0);
       p.avatar.update(dt);
     } else {
@@ -358,6 +361,7 @@ export class Game {
       g.position.z += (p.target.z - g.position.z) * k;
       let d = ((p.target.ry - g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
       g.rotation.y += d * k;
+      p.avatar.setLook(p.look.hy, p.look.hp);
       p.avatar.setAnim(p.anim, p.speed);
       p.avatar.update(dt);
     }
@@ -443,6 +447,7 @@ export class Game {
     const state = this.controller.update(dt);
     this.selfAvatar.group.position.set(state.x, state.y, state.z);
     this.selfAvatar.group.rotation.y = state.ry;
+    this.selfAvatar.setLook(state.hy, state.hp);
     this.selfAvatar.setAnim(state.anim, state.speed);
     this.selfAvatar.update(dt);
     // hide your own body in first person (your partner still sees you normally)
@@ -451,7 +456,7 @@ export class Game {
     // throttled state sync (only when something changed)
     const now = performance.now();
     if (now - this._lastSent > STATE_SEND_MS) {
-      const sig = `${state.x.toFixed(2)},${state.y.toFixed(2)},${state.z.toFixed(2)},${state.ry.toFixed(2)},${state.anim}`;
+      const sig = `${state.x.toFixed(2)},${state.y.toFixed(2)},${state.z.toFixed(2)},${state.ry.toFixed(2)},${state.anim},${state.hy.toFixed(1)},${state.hp.toFixed(1)}`;
       if (sig !== this._lastSentSig) {
         this.net.sendState(state);
         this._lastSentSig = sig;
