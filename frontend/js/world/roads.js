@@ -59,7 +59,7 @@ export function buildRoads(ctx) {
     const idx = [];
     for (let i = 0; i < path.length - 1; i++) {
       const a = i * 2, b = i * 2 + 1, c = i * 2 + 2, d = i * 2 + 3;
-      idx.push(a, c, b, b, c, d);
+      idx.push(a, b, c, c, b, d); // CCW seen from above — faces point up
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
