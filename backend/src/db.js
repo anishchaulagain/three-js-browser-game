@@ -16,11 +16,33 @@ const usePostgres = !!(process.env.DATABASE_URL || process.env.PGDATABASE);
 const useMemory = !usePostgres && process.env.MEMORY_DB === '1';
 
 /* ---------- postgres driver ---------- */
+/**
+ * Build the pg connection config from DATABASE_URL.
+ * `sslmode` is stripped from the URL and handled here explicitly: managed
+ * Postgres (Aiven, Render, Heroku…) uses provider CAs that fail Node's
+ * default verification — we encrypt always and verify against PG_CA_CERT
+ * when provided, otherwise accept the provider's certificate.
+ */
+function pgConfig(rawUrl = process.env.DATABASE_URL) {
+  if (!rawUrl) return null;
+  const url = new URL(rawUrl);
+  const sslmode = url.searchParams.get('sslmode') || process.env.PGSSLMODE || '';
+  url.searchParams.delete('sslmode');
+  url.searchParams.delete('uselibpqcompat');
+  const cfg = { connectionString: url.toString() };
+  if (sslmode && sslmode !== 'disable') {
+    const fs = require('fs');
+    const ca = process.env.PG_CA_CERT;
+    cfg.ssl = ca && fs.existsSync(ca)
+      ? { ca: fs.readFileSync(ca, 'utf8') }
+      : { rejectUnauthorized: false };
+  }
+  return cfg;
+}
+
 function postgresDriver() {
   const { Pool } = require('pg');
-  const pool = process.env.DATABASE_URL
-    ? new Pool({ connectionString: process.env.DATABASE_URL })
-    : new Pool(); // standard PG* env vars
+  const pool = new Pool(pgConfig() || {}); // falls back to standard PG* env vars
 
   const row = (r) => r && {
     id: r.id,
@@ -148,4 +170,5 @@ module.exports = {
   enabled: !!driver,
   mode: driver ? driver.mode : 'disabled',
   init, // wrapper (table + admin seed) must win over the driver's raw init
+  pgConfig,
 };

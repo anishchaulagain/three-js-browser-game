@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "db:migrate": "node scripts/migrate.js",
     "test:net": "node tests/two-players.js",
     "test:auth": "node tests/auth-flow.js",
     "test:browser": "node tests/browser-smoke.js"
