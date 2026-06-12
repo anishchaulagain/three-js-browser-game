@@ -6,6 +6,7 @@
  */
 import * as THREE from 'three';
 import { mat, box } from './helpers.js';
+import { heightAt, WORLD_RADIUS } from './terrain.js';
 
 const ACCEL = 9;
 const MAX_FWD = 16;
@@ -14,7 +15,7 @@ const TURN = 1.7;
 const DRAG = 0.55;
 const BRAKE = 3.5;
 const CAR_RADIUS = 1.6;
-const WORLD_RADIUS = 178;
+const CAR_BOUND = WORLD_RADIUS - 2;
 
 export function createCoupleCar(ctx) {
   const { scene, colliders, interactables } = ctx;
@@ -117,7 +118,7 @@ export function createCoupleCar(ctx) {
 
   function seatWorld(seat) {
     const p = localToWorld(seat === 'driver' ? -0.5 : 0.5, 0.25);
-    return new THREE.Vector3(p.x, 0.42, p.z);
+    return new THREE.Vector3(p.x, heightAt(p.x, p.z) + 0.42, p.z);
   }
 
   function exitWorld(seat) {
@@ -150,9 +151,9 @@ export function createCoupleCar(ctx) {
       }
     }
     const d = Math.hypot(state.x, state.z);
-    if (d > WORLD_RADIUS) {
-      state.x *= WORLD_RADIUS / d;
-      state.z *= WORLD_RADIUS / d;
+    if (d > CAR_BOUND) {
+      state.x *= CAR_BOUND / d;
+      state.z *= CAR_BOUND / d;
       state.v *= 0.3;
     }
   }
@@ -199,8 +200,17 @@ export function createCoupleCar(ctx) {
       state.v *= Math.max(0, 1 - dt * 2);
     }
 
-    group.position.set(state.x, 0, state.z);
+    group.position.set(state.x, heightAt(state.x, state.z), state.z);
     group.rotation.y = state.ry;
+    // lean with the terrain (sample the slope under nose/tail and both sides)
+    const tc = Math.cos(state.ry), ts = Math.sin(state.ry);
+    const hF = heightAt(state.x + ts * 1.7, state.z + tc * 1.7);
+    const hB = heightAt(state.x - ts * 1.7, state.z - tc * 1.7);
+    const hL = heightAt(state.x + tc, state.z - ts);
+    const hR = heightAt(state.x - tc, state.z + ts);
+    const tiltK = Math.min(1, dt * 6);
+    group.rotation.x += (Math.atan2(hB - hF, 3.4) - group.rotation.x) * tiltK;
+    group.rotation.z += (Math.atan2(hL - hR, 2.0) - group.rotation.z) * tiltK;
     for (const w of wheels) w.rotation.x += (state.v / 0.34) * dt;
     steerVis += ((keys ? steerInput * 0.42 : 0) - steerVis) * Math.min(1, dt * 8);
     for (const p of steerPivots) p.rotation.y = steerVis;
@@ -225,7 +235,7 @@ export function createCoupleCar(ctx) {
     state.ry = +s.ry || state.ry;
     state.v = 0;
     setNetState(s);
-    group.position.set(state.x, 0, state.z);
+    group.position.set(state.x, heightAt(state.x, state.z), state.z);
     group.rotation.y = state.ry;
   }
 

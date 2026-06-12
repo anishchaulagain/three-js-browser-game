@@ -1,11 +1,11 @@
 import * as THREE from 'three';
+import { heightAt, WORLD_RADIUS } from './world/terrain.js';
 
 const PLAYER_RADIUS = 0.38;
 const WALK_SPEED = 4.2;
 const RUN_SPEED = 8;
 const GRAVITY = 22;
 const JUMP_VELOCITY = 8;
-const WORLD_RADIUS = 180;
 
 export class PlayerController {
   constructor(camera, dom, { colliders, cameraBlockers, isTyping, lockAllowed }) {
@@ -79,7 +79,7 @@ export class PlayerController {
   }
 
   setSpawn(x, z, ry) {
-    this.pos.set(x, 0, z);
+    this.pos.set(x, heightAt(x, z), z);
     this.ry = ry;
     this.yaw = ry;
   }
@@ -97,7 +97,7 @@ export class PlayerController {
   standUp() {
     if (!this.seated) return;
     const e = this.seated.exit;
-    this.pos.set(e.x, 0, e.z);
+    this.pos.set(e.x, heightAt(e.x, e.z), e.z);
     this.seated = null;
     this.anim = 'idle';
   }
@@ -158,14 +158,10 @@ export class PlayerController {
           this.ry += d * Math.min(1, dt * 12);
         }
 
-        // jump + gravity
         if (this.keys.Space && this.grounded) {
           this.vy = JUMP_VELOCITY;
           this.grounded = false;
         }
-        this.vy -= GRAVITY * dt;
-        this.pos.y += this.vy * dt;
-        if (this.pos.y <= 0) { this.pos.y = 0; this.vy = 0; this.grounded = true; }
 
         this._collide();
 
@@ -174,6 +170,18 @@ export class PlayerController {
         if (d2 > WORLD_RADIUS) {
           this.pos.x *= WORLD_RADIUS / d2;
           this.pos.z *= WORLD_RADIUS / d2;
+        }
+
+        // gravity on rolling terrain
+        const groundY = heightAt(this.pos.x, this.pos.z);
+        if (this.grounded) {
+          if (groundY >= this.pos.y - 0.65) this.pos.y = groundY; // stick to slopes
+          else { this.grounded = false; this.vy = 0; }            // stepped off a ledge
+        }
+        if (!this.grounded) {
+          this.vy -= GRAVITY * dt;
+          this.pos.y += this.vy * dt;
+          if (this.pos.y <= groundY) { this.pos.y = groundY; this.vy = 0; this.grounded = true; }
         }
 
         this.anim = !this.grounded ? 'jump'
@@ -240,10 +248,10 @@ export class PlayerController {
     if (hits.length) dist = Math.max(1.2, hits[0].distance - 0.3);
 
     const desired = target.clone().addScaledVector(offset, dist);
-    // never sink below the ground plane — the world isn't visible from underneath
-    desired.y = Math.max(desired.y, 0.3);
+    // never sink below the terrain — the world isn't visible from underneath
+    desired.y = Math.max(desired.y, heightAt(desired.x, desired.z) + 0.35);
     this._camPos.lerp(desired, Math.min(1, dt * 10));
-    this._camPos.y = Math.max(this._camPos.y, 0.3);
+    this._camPos.y = Math.max(this._camPos.y, heightAt(this._camPos.x, this._camPos.z) + 0.35);
     this.camera.position.copy(this._camPos);
     this.camera.lookAt(target);
   }

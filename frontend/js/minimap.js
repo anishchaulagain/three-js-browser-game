@@ -4,7 +4,7 @@
  * trees) renders once; only the player pins redraw each frame.
  */
 
-const WORLD_RADIUS = 180;
+import { WORLD_RADIUS } from './world/terrain.js';
 
 export class Minimap {
   constructor(canvas, features) {
@@ -41,6 +41,14 @@ export class Minimap {
         g.beginPath();
         g.arc(this._mx(f.x), this._mz(f.z), Math.max(1.2, f.r * this.scale), 0, Math.PI * 2);
         g.fill();
+      } else if (f.type === 'line') {
+        g.strokeStyle = f.color;
+        g.lineWidth = Math.max(1, f.w * this.scale);
+        g.lineCap = 'round';
+        g.beginPath();
+        g.moveTo(this._mx(f.x1), this._mz(f.z1));
+        g.lineTo(this._mx(f.x2), this._mz(f.z2));
+        g.stroke();
       } else if (f.type === 'emoji') {
         g.font = `${f.size || 11}px "Segoe UI Emoji", sans-serif`;
         g.textAlign = 'center';
