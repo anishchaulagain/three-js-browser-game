@@ -1,8 +1,8 @@
 /* global io */
 
 export class Network {
-  constructor() {
-    this.socket = io();
+  constructor(token = null) {
+    this.socket = token ? io({ auth: { token } }) : io();
     this.offset = 0;        // serverNow - clientNow
     this.worldStart = 0;
     this.dayLength = 2 * 60 * 60 * 1000; // fallback only — the server's value overrides this
@@ -20,6 +20,8 @@ export class Network {
     this.onLeft = null;
     this.onFull = null;
     this.onRoles = null;
+    this.onDenied = null;
+    this.onAuthFailed = null;
 
     this.socket.on('welcome', (d) => {
       this._syncTime(d);
@@ -40,6 +42,8 @@ export class Network {
     this.socket.on('player_left', (d) => this.onLeft && this.onLeft(d));
     this.socket.on('world_full', () => this.onFull && this.onFull());
     this.socket.on('roles', (d) => this.onRoles && this.onRoles(d));
+    this.socket.on('join_denied', (d) => this.onDenied && this.onDenied(d));
+    this.socket.on('auth_failed', (d) => this.onAuthFailed && this.onAuthFailed(d));
   }
 
   _syncTime(d) {

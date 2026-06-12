@@ -21,7 +21,9 @@ import {
 } from './config.js';
 
 export class Game {
-  constructor() {
+  /** auth = { token, profile } when accounts are on, or null in open mode */
+  constructor(auth = null) {
+    this.auth = auth;
     /* renderer / scene / camera */
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -39,7 +41,7 @@ export class Game {
     /* subsystems */
     this.world = createWorld(this.scene);
     this.ui = new UI();
-    this.net = new Network();
+    this.net = new Network(auth ? auth.token : null);
     this.hearts = new HeartEffects(this.scene);
     this.secure = new SecureChannel(); // end-to-end chat encryption
     this.minimap = new Minimap(document.getElementById('minimap'), this.world.mapFeatures);
@@ -156,6 +158,13 @@ export class Game {
     const { net, ui } = this;
 
     net.onWelcome = (d) => {
+      if (this.auth) {
+        // accounts mode: your character is your account — join straight in
+        const g = this.auth.profile.gender || 'male';
+        const sp = SPAWNS[g];
+        net.join(g, this.auth.profile.displayName || '', sp.x, sp.z, this.secure.publicKeyB64);
+        return;
+      }
       ui.showSelect(d.taken, (role, name) => {
         const sp = SPAWNS[role];
         net.join(role, name, sp.x, sp.z, this.secure.publicKeyB64);
@@ -164,6 +173,12 @@ export class Game {
 
     net.onRoles = (d) => ui.updateTaken(d.taken);
     net.onFull = () => ui.showFull();
+    net.onDenied = (d) => ui.showFull(d && d.reason);
+    net.onAuthFailed = () => {
+      // stale/revoked token — sign in again
+      localStorage.removeItem('cw_token');
+      location.reload();
+    };
 
     net.onJoined = (d) => {
       this.self = d.self;

@@ -67,9 +67,10 @@ export class UI {
     $('hud').classList.remove('hidden');
   }
 
-  showFull() {
+  showFull(message) {
     $('select-screen').classList.add('hidden');
     $('hud').classList.add('hidden');
+    if (message) $('full-subtitle').textContent = message;
     $('full-screen').classList.remove('hidden');
   }
 

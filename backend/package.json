@@ -6,10 +6,15 @@
   "scripts": {
     "start": "node server.js",
     "test:net": "node tests/two-players.js",
+    "test:auth": "node tests/auth-flow.js",
     "test:browser": "node tests/browser-smoke.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
     "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.21.0",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {

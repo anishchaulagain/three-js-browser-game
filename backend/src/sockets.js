@@ -2,6 +2,7 @@
 const { MAX_PLAYERS, LIMITS } = require('./config');
 const { timeInfo } = require('./worldclock');
 const { authenticateSocket } = require('./auth');
+const db = require('./db');
 
 function registerSockets(io, players) {
   /** last known couple-car state, so a late joiner finds the car where it was left */
@@ -17,6 +18,7 @@ function registerSockets(io, players) {
       socket.disconnect(true);
       return;
     }
+    socket.user = auth.user; // null in open mode; a DB row with accounts on
 
     // Hard cap: if two players already live in the world, turn the visitor away.
     if (players.isFull) {
@@ -38,12 +40,30 @@ function registerSockets(io, players) {
         socket.disconnect(true);
         return;
       }
+      const u = socket.user;
+      if (u) {
+        // accounts on: the DB decides who you are — not the client
+        if (!u.gender) {
+          socket.emit('join_denied', { reason: 'Your account has no character yet — ask your admin 💌' });
+          return;
+        }
+        if (players.takenRoles().includes(u.gender)) {
+          socket.emit('join_denied', { reason: 'Your character is already in the world on another device.' });
+          return;
+        }
+        data = {
+          ...(data || {}),
+          role: u.gender,
+          name: u.displayName || u.username,
+        };
+      }
       const player = players.add(socket.id, data || {});
       if (!player) {
         socket.emit('world_full');
         socket.disconnect(true);
         return;
       }
+      if (u) player.outfit = Math.max(0, Math.min(11, u.outfit | 0));
       socket.emit('joined', {
         self: player,
         others: players.othersOf(socket.id),
@@ -69,6 +89,10 @@ function registerSockets(io, players) {
       if (!p) return;
       p.outfit = Math.max(0, Math.min(11, i | 0));
       socket.broadcast.emit('outfit', { id: socket.id, outfit: p.outfit });
+      // remember the look for the next session
+      if (socket.user && db.enabled) {
+        db.updateUser(socket.user.id, { outfit: p.outfit }).catch(() => {});
+      }
     });
 
     socket.on('emote', (emoji) => {

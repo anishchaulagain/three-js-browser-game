@@ -7,6 +7,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 
 const { PORT } = require('./src/config');
+const db = require('./src/db');
 const { PlayerManager } = require('./src/players');
 const { registerRoutes } = require('./src/routes');
 const { registerSockets } = require('./src/sockets');
@@ -20,10 +21,18 @@ const players = new PlayerManager();
 registerRoutes(app, players);
 registerSockets(io, players);
 
-server.listen(PORT, () => {
-  console.log('────────────────────────────────────────────');
-  console.log('  Couple World is running');
-  console.log(`  Open http://localhost:${PORT} on two devices`);
-  console.log('  (only two hearts may enter)');
-  console.log('────────────────────────────────────────────');
-});
+db.init()
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log('────────────────────────────────────────────');
+      console.log('  Couple World is running');
+      console.log(`  Open http://localhost:${PORT} on two devices`);
+      console.log('  (only two hearts may enter)');
+      console.log(`  accounts: ${db.mode === 'disabled' ? 'OFF — open mode (configure Postgres in .env)' : `ON (${db.mode})`}`);
+      console.log('────────────────────────────────────────────');
+    });
+  })
+  .catch((err) => {
+    console.error('[db] failed to initialize — check your .env Postgres settings:', err.message);
+    process.exit(1);
+  });
