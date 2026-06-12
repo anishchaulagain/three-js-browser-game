@@ -12,6 +12,7 @@ import { createChunks } from './chunks.js';
 import { buildHouse } from './house.js';
 import { buildNature } from './nature.js';
 import { buildCity } from './city.js';
+import { buildRoads } from './roads.js';
 import { buildSecrets } from './secrets.js';
 import { buildGarden } from './garden.js';
 import { buildLandmarks } from './landmarks.js';
@@ -42,6 +43,7 @@ export function createWorld(scene) {
   const house = buildHouse(ctx);
   const nature = buildNature(ctx);
   const city = buildCity(ctx);
+  buildRoads(ctx); // country roads out to the park, lake, ponds and windmill
   const secrets = buildSecrets(ctx);
   const garden = buildGarden(ctx);
   const landmarks = buildLandmarks(ctx); // park, lake, windmill, ponds, summit
