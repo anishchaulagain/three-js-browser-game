@@ -1,8 +1,11 @@
 /* global io */
+import { API_BASE } from './apibase.js';
 
 export class Network {
   constructor(token = null) {
-    this.socket = token ? io({ auth: { token } }) : io();
+    const opts = token ? { auth: { token } } : {};
+    // API_BASE = '' → same origin; otherwise the deployed backend URL
+    this.socket = API_BASE ? io(API_BASE, opts) : io(opts);
     this.offset = 0;        // serverNow - clientNow
     this.worldStart = 0;
     this.dayLength = 2 * 60 * 60 * 1000; // fallback only — the server's value overrides this

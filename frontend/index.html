@@ -133,7 +133,12 @@
     </div>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="env.js"></script>
+  <script>
+    // the socket.io client ships from the backend itself, wherever it lives —
+    // document.write keeps it synchronous so `io` exists before main.js runs
+    document.write('<script src="' + (window.API_BASE_URL || '') + '/socket.io/socket.io.js"><\/script>');
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl.min.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>

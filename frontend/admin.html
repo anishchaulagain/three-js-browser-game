@@ -88,12 +88,14 @@
     </table>
   </div>
 
+  <script src="env.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
+    const API_BASE = (window.API_BASE_URL || '').replace(/\/+$/, '');
     let token = sessionStorage.getItem('cw_admin_token');
 
     async function api(url, method = 'GET', body) {
-      const res = await fetch(url, {
+      const res = await fetch(API_BASE + url, {
         method,
         headers: {
           ...(body ? { 'Content-Type': 'application/json' } : {}),

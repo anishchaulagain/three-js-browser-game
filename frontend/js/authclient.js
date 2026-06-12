@@ -7,12 +7,13 @@
  *                 → resolves { token, profile }
  */
 import { OUTFITS } from './avatar/outfits.js';
+import { apiUrl } from './apibase.js';
 
 const $ = (id) => document.getElementById(id);
 const TOKEN_KEY = 'cw_token';
 
 async function jfetch(url, { method = 'GET', token, body } = {}) {
-  const res = await fetch(url, {
+  const res = await fetch(apiUrl(url), {
     method,
     headers: {
       ...(body ? { 'Content-Type': 'application/json' } : {}),

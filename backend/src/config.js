@@ -8,6 +8,9 @@ module.exports = {
   /** tokens are signed with this — set a real secret in .env for production */
   JWT_SECRET: process.env.JWT_SECRET || 'dev-secret-change-me',
   TOKEN_TTL: '7d',
+  /** origin(s) allowed to call the API/socket from another host (comma-separated).
+      Only needed when the frontend is deployed separately from this server. */
+  FRONTEND_ORIGIN: process.env.FRONTEND_ORIGIN || '',
   ADMIN_USERNAME: process.env.ADMIN_USERNAME || 'admin',
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'admin1234',
   /** one full in-game day (morning → night → morning) = 2 real hours */
