@@ -176,6 +176,23 @@ export class Theater {
     this.apply({ v, playing, t, at: this.net.serverNow() });
   }
 
+  /** P on the sofa: flip play/pause for both of you */
+  togglePlay() {
+    if (!this.state) {
+      this.ui.toast('No movie yet — press Y and paste a YouTube link 🎬', 2600);
+      return;
+    }
+    if (!this.playerReady) return;
+    const t = this.player.getCurrentTime() || 0;
+    if (this.state.playing) {
+      this._send(false, t);
+      this.ui.toast('⏸ Paused for both', 1600);
+    } else {
+      this._send(true, t);
+      this.ui.toast('▶ Rolling 🍿', 1600);
+    }
+  }
+
   /** house rule: leaving the sofa pauses the movie for everyone */
   userStood() {
     if (this.state?.playing && this.playerReady) {

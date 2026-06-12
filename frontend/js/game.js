@@ -396,6 +396,9 @@ export class Game {
       else if (e.code === 'KeyY' && this.controller.seated && this.controller.seated.theater) {
         this.theater.openDialog();
       }
+      else if (e.code === 'KeyP' && this.controller.seated && this.controller.seated.theater) {
+        this.theater.togglePlay();
+      }
       else if (EMOTE_KEYS[e.code]) this._emote(EMOTE_KEYS[e.code]);
       else if (e.shiftKey && NUM_EMOJI[e.code]) {
         e.preventDefault();
@@ -513,7 +516,7 @@ export class Game {
     if (this.controller.seated) {
       this.currentInteractable = null;
       this.ui.showPrompt(this.controller.seated.theater
-        ? '🍿 <b>Y</b> — pick a movie · <b>E</b> or move — get up (pauses for both)'
+        ? '🍿 <b>Y</b> — pick a movie · <b>P</b> — play/pause · <b>E</b> or move — get up'
         : 'Press <b>E</b> or move to get up');
       return;
     }
