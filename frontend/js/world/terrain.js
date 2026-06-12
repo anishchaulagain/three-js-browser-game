@@ -23,6 +23,7 @@ export const PONDS = [
   { x: -95, z: 265, r: 8 },                                   // quiet pond
 ];
 export const SUMMIT = { x: -200, z: -265 };                   // Whisper Peak marker
+export const TOWER = { x: 40, z: 300 };                       // Tower of Love (obby)
 
 export const MOUNTAINS = [
   { x: -70, z: -310, h: 75, s: 55 },
@@ -43,6 +44,7 @@ const PADS = [
   { x: WINDMILL.x, z: WINDMILL.z, r: 16, blend: 34, h: WINDMILL.h },
   { x: PONDS[0].x, z: PONDS[0].z, r: 13, blend: 14, h: -0.9 },
   { x: PONDS[1].x, z: PONDS[1].z, r: 11, blend: 14, h: -0.9 },
+  { x: TOWER.x, z: TOWER.z, r: 24, blend: 26, h: 0 },
 ];
 
 /** drivable country roads (built by roads.js). The terrain flattens laterally
@@ -52,6 +54,7 @@ export const ROADS = [
   [{ x: 160, z: 70 }, { x: 170, z: 140 }, { x: 150, z: 200 }],      // Duck Pond Lane
   [{ x: -52, z: 70 }, { x: -140, z: 88 }, { x: -192, z: 100 }],     // West Drive: city → Crystal Lake
   [{ x: -140, z: 88 }, { x: -212, z: -78 }],                        // Windmill Way
+  [{ x: 150, z: 200 }, { x: 66, z: 288 }],                          // Tower Road
 ];
 const ROAD_HALF = 4;     // flat half-width of the corridor
 const ROAD_BLEND = 5;    // shoulder blend back into the wild
@@ -188,6 +191,7 @@ export function scatterClear(x, z) {
   if (Math.hypot(x - WINDMILL.x, z - WINDMILL.z) < 20) return false;  // windmill hill
   for (const p of PONDS) if (Math.hypot(x - p.x, z - p.z) < p.r + 8) return false;
   if (Math.hypot(x - SUMMIT.x, z - SUMMIT.z) < 9) return false;       // summit cairn
+  if (Math.hypot(x - TOWER.x, z - TOWER.z) < 28) return false;        // Tower of Love
   for (const trail of TRAILS) {
     for (let i = 0; i < trail.length - 1; i++) {
       if (distToSeg(x, z, trail[i], trail[i + 1]) < 3.2) return false;

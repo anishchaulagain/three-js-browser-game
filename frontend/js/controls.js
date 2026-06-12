@@ -195,14 +195,14 @@ export class PlayerController {
           this.pos.z *= WORLD_RADIUS / d2;
         }
 
-        // gravity on rolling terrain
-        const groundY = heightAt(this.pos.x, this.pos.z);
+        // gravity on rolling terrain and tower platforms
+        const groundY = this._groundHeight();
         if (this.grounded) {
           if (groundY >= this.pos.y - 0.65) this.pos.y = groundY; // stick to slopes
           else { this.grounded = false; this.vy = 0; }            // stepped off a ledge
         }
         if (!this.grounded) {
-          this.vy -= GRAVITY * dt;
+          this.vy = Math.max(this.vy - GRAVITY * dt, -30);        // capped so long falls can't tunnel
           this.pos.y += this.vy * dt;
           if (this.pos.y <= groundY) { this.pos.y = groundY; this.vy = 0; this.grounded = true; }
         }
@@ -223,28 +223,45 @@ export class PlayerController {
   _collide() {
     const p = this.pos, r = PLAYER_RADIUS;
     for (const c of this.colliders) {
-      if (c.type === 'box') {
-        // skip if clearly outside the expanded box
-        if (p.x < c.minX - r || p.x > c.maxX + r || p.z < c.minZ - r || p.z > c.maxZ + r) continue;
-        // push out along the axis of least penetration
-        const pushLeft = p.x - (c.minX - r);
-        const pushRight = (c.maxX + r) - p.x;
-        const pushBack = p.z - (c.minZ - r);
-        const pushFront = (c.maxZ + r) - p.z;
-        const min = Math.min(pushLeft, pushRight, pushBack, pushFront);
-        if (min === pushLeft) p.x = c.minX - r;
-        else if (min === pushRight) p.x = c.maxX + r;
-        else if (min === pushBack) p.z = c.minZ - r;
-        else p.z = c.maxZ + r;
-      } else {
+      if (c.type === 'circle') {
         const dx = p.x - c.x, dz = p.z - c.z;
         const dist = Math.hypot(dx, dz), minDist = c.r + r;
         if (dist < minDist && dist > 0.0001) {
           p.x = c.x + (dx / dist) * minDist;
           p.z = c.z + (dz / dist) * minDist;
         }
+        continue;
       }
+      // 3D slab: stand on top, pass underneath — only the sides push.
+      // The 0.45 margin matches the step-up height, so near-the-lip jumps
+      // mantle onto the platform instead of scraping off its side.
+      if (c.type === 'platform' && (p.y >= c.y1 - 0.45 || p.y + 1.6 <= c.y0)) continue;
+      // box (infinite height) or the side of a platform slab
+      if (p.x < c.minX - r || p.x > c.maxX + r || p.z < c.minZ - r || p.z > c.maxZ + r) continue;
+      // push out along the axis of least penetration
+      const pushLeft = p.x - (c.minX - r);
+      const pushRight = (c.maxX + r) - p.x;
+      const pushBack = p.z - (c.minZ - r);
+      const pushFront = (c.maxZ + r) - p.z;
+      const min = Math.min(pushLeft, pushRight, pushBack, pushFront);
+      if (min === pushLeft) p.x = c.minX - r;
+      else if (min === pushRight) p.x = c.maxX + r;
+      else if (min === pushBack) p.z = c.minZ - r;
+      else p.z = c.maxZ + r;
     }
+  }
+
+  /** What the player can stand on here: terrain, or the highest platform top
+      at/below the feet (within a small step-up margin). */
+  _groundHeight() {
+    const p = this.pos;
+    let g = heightAt(p.x, p.z);
+    for (const c of this.colliders) {
+      if (c.type !== 'platform') continue;
+      if (p.x < c.minX - 0.05 || p.x > c.maxX + 0.05 || p.z < c.minZ - 0.05 || p.z > c.maxZ + 0.05) continue;
+      if (c.y1 <= p.y + 0.45 && c.y1 > g) g = c.y1;
+    }
+    return g;
   }
 
   _updateCamera(dt) {

@@ -133,14 +133,18 @@ export function buildRoads(ctx) {
   }
 
   // dead ends get a loop to swing the car around
-  turnaround({ x: 150, z: 200 });   // Duck Pond Lane
+  turnaround({ x: 150, z: 200 });   // Duck Pond Lane / Tower Road junction
   turnaround({ x: -192, z: 100 });  // West Drive (lake gate)
   turnaround({ x: -212, z: -78 });  // Windmill Way
+  turnaround({ x: 66, z: 288 });    // Tower of Love gate
 
   // junction signposts
   signpost(160, 64.5, [
     { text: 'Sunset Park 🌳 →', face: Math.PI / 2 },
     { text: '← Duck Pond 🦆', face: -Math.PI / 2 },
+  ]);
+  signpost(143, 207, [
+    { text: 'Tower of Love 🗼 →', face: Math.PI / 4 },
   ]);
   signpost(-134, 82, [
     { text: '← Crystal Lake 🌊', face: Math.PI / 2 },

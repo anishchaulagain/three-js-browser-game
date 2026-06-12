@@ -127,6 +127,7 @@ export function createCoupleCar(ctx) {
 
   function collide() {
     for (const c of colliders) {
+      if (c.type === 'platform') continue; // tower slabs live above the car
       if (c.type === 'box') {
         if (state.x < c.minX - CAR_RADIUS || state.x > c.maxX + CAR_RADIUS ||
             state.z < c.minZ - CAR_RADIUS || state.z > c.maxZ + CAR_RADIUS) continue;
