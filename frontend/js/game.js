@@ -74,6 +74,18 @@ export class Game {
     this._wireNetwork();
     this._wireKeys();
 
+    // sign out (accounts mode only): drop the session and return to sign-in
+    if (this.auth) {
+      const btn = document.getElementById('logout-btn');
+      btn.classList.remove('hidden');
+      btn.addEventListener('click', () => {
+        if (!confirm('Sign out of the game?')) return;
+        localStorage.removeItem('cw_token');
+        this.net.socket.disconnect();
+        location.reload();
+      });
+    }
+
     // Tower of Love: celebrate reaching the heart beam at the top
     this.world.tower.setOnWin((sec) => {
       const m = Math.floor(sec / 60), s = String(Math.floor(sec % 60)).padStart(2, '0');

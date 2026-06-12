@@ -143,6 +143,17 @@ canvas { display: block; }
 }
 #day-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ffd166, #ff7eb6); border-radius: 2px; }
 
+#logout-btn {
+  position: absolute; top: 58px; right: 16px;
+  pointer-events: auto;
+  background: rgba(20, 16, 36, 0.6);
+  color: #cfc7e8; padding: 7px 14px;
+  border: 1px solid rgba(255, 158, 203, 0.25); border-radius: 12px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+#logout-btn:hover { background: rgba(60, 24, 48, 0.85); color: #ff9ecb; }
+
 #partner-status {
   position: absolute; top: 16px; right: 16px;
   background: rgba(20, 16, 36, 0.6);
