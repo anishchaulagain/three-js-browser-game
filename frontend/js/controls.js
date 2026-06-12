@@ -98,10 +98,10 @@ export class PlayerController {
   }
 
   /** Sit or lie at a fixed spot. y is the absolute root height for the pose. */
-  sitAt({ x, z, y, ry, exit }, anim = 'sit') {
+  sitAt({ x, z, y, ry, exit, theater }, anim = 'sit') {
     this.dancing = false;
     this.bowTimer = 0;
-    this.seated = { exit: exit || { x, z: z + 1 }, anim };
+    this.seated = { exit: exit || { x, z: z + 1 }, anim, theater: !!theater };
     this.pos.set(x, y, z);
     this.ry = ry || 0;
     this.vy = 0;
@@ -116,12 +116,14 @@ export class PlayerController {
 
   standUp() {
     if (!this.seated) return;
-    const e = this.seated.exit;
+    const meta = this.seated;
+    const e = meta.exit;
     this.pos.set(e.x, heightAt(e.x, e.z), e.z);
     this.seated = null;
     this.anim = 'idle';
     // back within the standing camera's pitch range (sleep allows steeper)
     this.pitch = THREE.MathUtils.clamp(this.pitch, this.firstPerson ? -1.25 : -0.5, 1.25);
+    if (this.onStandUp) this.onStandUp(meta); // e.g. theater pauses the movie
   }
 
   _moveInput() {

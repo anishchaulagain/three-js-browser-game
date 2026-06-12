@@ -35,8 +35,16 @@ export function buildHouse(ctx) {
 
   // back wall (z = -30)
   wallSeg(0, H.minZ, 14 + H.t, H.t);
-  // left + right walls
-  wallSeg(H.minX, -25, H.t, 10);
+  // left wall — split with a doorway (z ∈ [-25.3, -23.9]) into the theater annex
+  wallSeg(H.minX, (-30 + -25.3) / 2, H.t, 4.7);
+  wallSeg(H.minX, (-23.9 + -20) / 2, H.t, 3.9);
+  {
+    const lintel = box(H.t, H.wallH - 2.3, 1.4, wallMat);
+    lintel.position.set(H.minX, 2.3 + (H.wallH - 2.3) / 2, -24.6);
+    scene.add(lintel);
+    cameraBlockers.push(lintel);
+  }
+  // right wall
   wallSeg(H.maxX, -25, H.t, 10);
   // front wall (z = -20) with a door gap x ∈ [-0.9, 0.9]
   wallSeg((-7 + -0.9) / 2, H.maxZ, (-0.9 - -7), H.t);
@@ -341,8 +349,96 @@ export function buildHouse(ctx) {
     kitchenShadeMat = lampShade.material;
   }
 
+  /* ============ home theater annex (x ∈ [-15, -7]) ============ */
+  {
+    const T = { minX: -15, maxX: -7, minZ: -29, maxZ: -21 }; // door shares the house's left wall
+    const darkMat = mat(0x4a2735);   // plum theater walls
+    const darkWall = (cx, cz, w, d) => {
+      const m = box(w, H.wallH, d, darkMat);
+      m.position.set(cx, H.wallH / 2, cz);
+      scene.add(m);
+      cameraBlockers.push(m);
+      addBoxCollider(cx, cz, w, d);
+    };
+    darkWall(T.minX, -25, H.t, 8 + H.t);                       // west (screen) wall
+    darkWall((T.minX + T.maxX) / 2, T.minZ, 8 + H.t, H.t);     // north
+    darkWall((T.minX + T.maxX) / 2, T.maxZ, 8 + H.t, H.t);     // south
+    const tFloor = box(8.2, 0.12, 8.2, mat(0x35202c));         // soft dark carpet
+    tFloor.position.set(-11, 0.06, -25);
+    tFloor.receiveShadow = true;
+    scene.add(tFloor);
+    const tRoof = box(8.8, 0.3, 8.8, mat(0x6e3b4d));
+    tRoof.position.set(-11, H.wallH + 0.15, -25);
+    scene.add(tRoof);
+    cameraBlockers.push(tRoof);
+    mapFeatures.push({ type: 'rect', x: -11, z: -25, w: 8.6, d: 8.6, color: '#6e3b4d' });
+    mapFeatures.push({ type: 'emoji', x: -11, z: -25, text: '🍿', size: 11 });
+
+    // the screen: dark frame on the west wall — the actual video is a CSS3D
+    // YouTube player aligned to ctx.theaterScreen (see world's theater.js)
+    const frame = box(0.18, 2.65, 4.4, mat(0x16161a));
+    frame.position.set(-14.78, 1.75, -25);
+    scene.add(frame);
+    ctx.theaterScreen = { x: -14.66, y: 1.75, z: -25, ry: Math.PI / 2, w: 4.0, h: 2.25 };
+
+    // love-seat sofa facing the screen
+    {
+      const sx = -9.6, sz = -25;
+      const sofaMat = mat(0x8c3a55);
+      const seat = box(1.05, 0.5, 2.7, sofaMat);
+      seat.position.set(sx, 0.25, sz);
+      scene.add(seat);
+      const backrest = box(0.3, 1.05, 2.7, sofaMat);
+      backrest.position.set(sx + 0.55, 0.55, sz);
+      scene.add(backrest);
+      for (const side of [-1, 1]) {
+        const arm = box(1.05, 0.72, 0.28, sofaMat);
+        arm.position.set(sx, 0.36, sz + side * 1.45);
+        scene.add(arm);
+        const cushion = box(0.95, 0.14, 1.2, mat(0xb05a78));
+        cushion.position.set(sx, 0.56, sz + side * 0.62);
+        scene.add(cushion);
+      }
+      addBoxCollider(sx + 0.1, sz, 1.5, 3.1);
+      for (const side of [-1, 1]) {
+        interactables.push({
+          x: sx - 0.9, z: sz + side * 0.62, radius: 1.4,
+          label: 'snuggle up for a movie 🍿', type: 'seat',
+          data: {
+            x: sx, z: sz + side * 0.62, y: -0.12, ry: -Math.PI / 2, theater: true,
+            exit: { x: sx - 1.5, z: sz + side * 0.62 },
+          },
+        });
+      }
+    }
+
+    // media console under the screen — where the movie gets picked
+    const console_ = box(0.55, 0.5, 1.7, mat(0x2a2a32));
+    console_.position.set(-14.3, 0.25, -25);
+    scene.add(console_);
+    addBoxCollider(-14.3, -25, 0.7, 1.8);
+    interactables.push({
+      x: -13.5, z: -25, radius: 2.4,
+      label: 'set up a movie 🎬', type: 'theater',
+    });
+
+    // warm sconces + a soft screen-glow light
+    for (const sz2 of [-27.5, -22.5]) {
+      const sconce = box(0.12, 0.5, 0.2, new THREE.MeshStandardMaterial({
+        color: 0xffd9a0, emissive: 0xffb066, emissiveIntensity: 0.7,
+      }));
+      sconce.position.set(-14.85, 2.1, sz2);
+      scene.add(sconce);
+    }
+    const glow = new THREE.PointLight(0x8fb8ff, 3.5, 9, 1.8);
+    glow.position.set(-13.6, 2.0, -25);
+    scene.add(glow);
+  }
+
   function isInsideHouse(p) {
-    return p.x > H.minX && p.x < H.maxX && p.z > H.minZ && p.z < H.maxZ;
+    const inMain = p.x > H.minX && p.x < H.maxX && p.z > H.minZ && p.z < H.maxZ;
+    const inTheater = p.x > -15 && p.x < H.minX && p.z > -29 && p.z < -21;
+    return inMain || inTheater;
   }
 
   /**

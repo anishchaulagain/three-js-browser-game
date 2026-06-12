@@ -146,6 +146,15 @@ async function main() {
   const rejoin = await once(s1c, 'joined');
   assert(rejoin.self.role === 'male', 'reconnect evicts your own ghost and enters');
 
+  /* home-theater sync: state relays with a server timestamp */
+  const theaterMsg = once(s2, 'theater');
+  s1c.emit('theater', { v: 'dQw4w9WgXcQ', playing: true, t: 12 });
+  const th = await theaterMsg;
+  assert(th.v === 'dQw4w9WgXcQ' && th.playing === true && th.t === 12 && typeof th.at === 'number',
+    'theater play state relays to the partner');
+  s1c.emit('theater', { v: 'bad id!', playing: true, t: 0 });
+  await new Promise((r2) => setTimeout(r2, 150)); // invalid ids are dropped server-side
+
   /* ---- multiplayer: a THIRD account joins (two males may coexist) ---- */
   r = await api('/api/admin/users', {
     method: 'POST', token: adminToken,
@@ -164,6 +173,8 @@ async function main() {
   const j3 = await once(s3, 'joined');
   assert(j3.self.role === 'male' && j3.others.length === 2,
     'third player joins — same gender as romeo, sees 2 others');
+  assert(j3.theaterState && j3.theaterState.v === 'dQw4w9WgXcQ',
+    'late joiner receives the running movie state');
 
   /* targeted E2E chat: juliet → romeo only; paris must NOT receive it */
   let parisGotChat = false;

@@ -30,6 +30,11 @@ export const interactionHandlers = {
     game.controller.sitAt(it.data, 'sit');
   },
 
+  /** the home-theater media console — pick a movie */
+  theater(game) {
+    game.theater.openDialog();
+  },
+
   cook(game) {
     game.selfAvatar.emote('🍳');
     game.net.sendEmote('🍳');
