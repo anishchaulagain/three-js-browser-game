@@ -1,6 +1,8 @@
 /** HTTP routes: static frontend + JSON API. Mount future routers here. */
 const express = require('express');
 const path = require('path');
+const { createAuthRouter } = require('./routes/auth');
+const { createAdminRouter } = require('./routes/admin');
 
 function registerRoutes(app, players) {
   app.use(express.json());
@@ -10,9 +12,13 @@ function registerRoutes(app, players) {
     res.json({ ok: true, players: players.size, roles: players.takenRoles() });
   });
 
-  // Extension point: mount feature routers here, e.g.
-  //   app.use('/api/auth', require('./routes/auth'));
-  //   app.use('/api/profiles', require('./routes/profiles'));
+  app.use('/api/auth', createAuthRouter());
+  app.use('/api/admin', createAdminRouter());
+
+  // the admin dashboard lives at a clean, separate route
+  app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', '..', 'frontend', 'admin.html'));
+  });
 
   app.use(express.static(path.join(__dirname, '..', '..', 'frontend')));
 }

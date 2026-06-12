@@ -17,21 +17,16 @@ class PlayerManager {
   takenRoles() { return this.list().map((p) => p.role); }
 
   /**
-   * Create and register a player. Resolves role conflicts (if the requested
-   * character is taken, hands out the other one). Returns null if no role
-   * is free.
+   * Create and register a player. Many players may share a character style
+   * (role) — identity comes from the account, not the slot. Returns null
+   * only when the world is at MAX_PLAYERS.
    */
   add(id, { role, name, x, z, pubkey }) {
-    let resolved = role === 'female' ? 'female' : 'male';
-    const taken = this.takenRoles();
-    if (taken.includes(resolved)) {
-      resolved = resolved === 'male' ? 'female' : 'male';
-      if (taken.includes(resolved)) return null;
-    }
+    if (this.isFull) return null;
     const cleanName = String(name || '').trim().slice(0, LIMITS.name);
     const player = {
       id,
-      role: resolved,
+      role: role === 'female' ? 'female' : 'male',
       name: cleanName || (resolved === 'male' ? 'Him' : 'Her'),
       // E2E chat public key — opaque to the server, just relayed to the partner
       pubkey: typeof pubkey === 'string' && pubkey.length <= 64 ? pubkey : null,

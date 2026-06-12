@@ -22,47 +22,59 @@ const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 export class SecureChannel {
   constructor() {
     this.keyPair = nacl.box.keyPair();
-    this.shared = null;
-    this.fingerprint = '';
+    /** peerId → { shared, fingerprint } — one pairwise channel per player */
+    this.peers = new Map();
   }
 
   get publicKeyB64() {
     return toB64(this.keyPair.publicKey);
   }
 
-  get ready() {
-    return !!this.shared;
+  hasPeer(id) {
+    return this.peers.has(id);
   }
 
-  /** Derive the shared secret from the partner's public key. */
-  setPartnerKey(b64) {
-    if (!b64 || typeof b64 !== 'string') return false;
+  fingerprintOf(id) {
+    const p = this.peers.get(id);
+    return p ? p.fingerprint : '';
+  }
+
+  /** Derive a shared secret with one peer from their public key. */
+  setPeerKey(id, b64) {
+    if (!id || !b64 || typeof b64 !== 'string') return false;
     try {
       const pk = fromB64(b64);
       if (pk.length !== nacl.box.publicKeyLength) return false;
-      this.shared = nacl.box.before(pk, this.keyPair.secretKey);
+      const shared = nacl.box.before(pk, this.keyPair.secretKey);
       // deterministic fingerprint of BOTH public keys (sorted → same on both ends)
       const h = nacl.hash(enc.encode([this.publicKeyB64, b64].sort().join('|')));
-      this.fingerprint = [h[0], h[1], h[2]].map((b) => SEAL_EMOJIS[b % SEAL_EMOJIS.length]).join('');
+      const fingerprint = [h[0], h[1], h[2]].map((b) => SEAL_EMOJIS[b % SEAL_EMOJIS.length]).join('');
+      this.peers.set(id, { shared, fingerprint });
       return true;
     } catch {
       return false;
     }
   }
 
-  /** text → {n: nonce, c: ciphertext} (base64), or null if no channel yet */
-  encrypt(text) {
-    if (!this.shared) return null;
+  removePeer(id) {
+    this.peers.delete(id);
+  }
+
+  /** text → {n: nonce, c: ciphertext} (base64) for ONE peer, or null */
+  encryptFor(id, text) {
+    const p = this.peers.get(id);
+    if (!p) return null;
     const nonce = nacl.randomBytes(nacl.box.nonceLength);
-    const ct = nacl.box.after(enc.encode(text), nonce, this.shared);
+    const ct = nacl.box.after(enc.encode(text), nonce, p.shared);
     return { n: toB64(nonce), c: toB64(ct) };
   }
 
-  /** {n, c} → text, or null if missing/tampered/not-for-us */
-  decrypt(e) {
-    if (!this.shared || !e || !e.n || !e.c) return null;
+  /** {n, c} from a peer → text, or null if missing/tampered/not-for-us */
+  decryptFrom(id, e) {
+    const p = this.peers.get(id);
+    if (!p || !e || !e.n || !e.c) return null;
     try {
-      const pt = nacl.box.open.after(fromB64(e.c), fromB64(e.n), this.shared);
+      const pt = nacl.box.open.after(fromB64(e.c), fromB64(e.n), p.shared);
       return pt ? dec.decode(pt) : null;
     } catch {
       return null;

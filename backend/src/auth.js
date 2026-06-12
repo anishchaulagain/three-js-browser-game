@@ -1,19 +1,27 @@
 /**
- * Authentication — extension point.
+ * Socket authentication.
  *
- * Currently everyone is allowed in (the 2-player cap is enforced separately
- * in sockets.js). To add real authentication later:
+ * With accounts enabled (Postgres configured), every socket must present a
+ * valid JWT in `io({ auth: { token } })`; the matching user row is attached
+ * to the socket and later drives the authoritative join (gender → character,
+ * display name, saved outfit).
  *
- *  1. Issue a token at login (e.g. an /api/auth/login route in routes.js).
- *  2. Have the client pass it when connecting:
- *       io({ auth: { token } })
- *  3. Verify it here — socket.handshake.auth.token — and return
- *       { ok: false, reason: '...' } to reject the connection,
- *       or { ok: true, user: {...} } to attach a user record.
+ * With accounts disabled (no DB in .env) everyone is allowed in, exactly as
+ * before — the 2-player cap still applies either way.
  */
+const db = require('./db');
+const { verify } = require('./jwt');
+
 async function authenticateSocket(socket) {
-  void socket; // unused until real auth is plugged in
-  return { ok: true, user: null };
+  if (!db.enabled) return { ok: true, user: null };
+
+  const token = socket.handshake.auth && socket.handshake.auth.token;
+  const payload = token && verify(token);
+  if (!payload) return { ok: false, reason: 'invalid or missing token' };
+
+  const user = await db.findById(payload.sub);
+  if (!user) return { ok: false, reason: 'account no longer exists' };
+  return { ok: true, user };
 }
 
 module.exports = { authenticateSocket };

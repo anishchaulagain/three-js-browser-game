@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Our Little World — Admin 🛠️</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛠️</text></svg>" />
+  <style>
+    * { box-sizing: border-box; margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body { min-height: 100vh; background: radial-gradient(ellipse at top, #2a1a3e, #140b24); color: #3a2440; padding: 28px 14px; }
+    .panel { background: rgba(255,250,252,.96); border-radius: 20px; max-width: 880px; margin: 0 auto 18px; padding: 26px 30px; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+    h1 { font-size: 24px; color: #4a2545; margin-bottom: 4px; }
+    .sub { color: #8a6a85; font-size: 13px; margin-bottom: 18px; }
+    input, select { padding: 9px 12px; border: 2px solid #f0dcea; border-radius: 10px; font-size: 14px; outline: none; background: #fff; }
+    input:focus, select:focus { border-color: #e84393; }
+    button { padding: 9px 16px; border: none; border-radius: 10px; background: linear-gradient(135deg,#e84393,#c2387f); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
+    button:hover { filter: brightness(1.08); }
+    button.ghost { background: #f3e3ee; color: #a23577; }
+    button.danger { background: #f3d3d3; color: #b3261e; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .err { background: #ffe3ec; color: #c2185b; border-radius: 10px; padding: 9px 12px; font-size: 13px; margin: 10px 0; }
+    .ok { background: #e2f6e9; color: #1d7a45; border-radius: 10px; padding: 9px 12px; font-size: 13px; margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 14px; }
+    th { text-align: left; color: #8a6a85; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; padding: 8px 10px; }
+    td { padding: 10px; border-top: 1px solid #f4e4ef; }
+    .tag { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .tag.admin { background: #efe3ff; color: #7236b8; }
+    .tag.player { background: #ffe7f1; color: #c2387f; }
+    .tag.pending { background: #fff3d6; color: #9a6b00; }
+    .hidden { display: none; }
+    .right { margin-left: auto; }
+  </style>
+</head>
+<body>
+  <!-- sign in -->
+  <div class="panel" id="login-panel">
+    <h1>🛠️ Admin — Our Little World</h1>
+    <p class="sub">Sign in with an admin account to manage the couple's users. Players can't enter here.</p>
+    <div class="row">
+      <input id="login-user" placeholder="Username" style="width:240px" />
+      <input id="login-pass" type="password" placeholder="Password" />
+      <button id="login-btn">Sign in 🔐</button>
+    </div>
+    <div id="login-err" class="err hidden"></div>
+  </div>
+
+  <!-- forced password change on first sign-in -->
+  <div class="panel hidden" id="pw-panel">
+    <h1>🔑 Set your admin password</h1>
+    <p class="sub">First sign-in — replace the temporary password before continuing.</p>
+    <div class="row">
+      <input id="pw-current" type="password" placeholder="Current password" class="hidden" />
+      <input id="pw-new1" type="password" placeholder="New password (min 6)" />
+      <input id="pw-new2" type="password" placeholder="Repeat new password" />
+      <button id="pw-btn">Save 🔒</button>
+    </div>
+    <div id="pw-err" class="err hidden"></div>
+  </div>
+
+  <!-- user management -->
+  <div class="panel hidden" id="admin-panel">
+    <div class="row">
+      <div>
+        <h1>👥 Users</h1>
+        <p class="sub">Create the two lovebirds, set their character, reset passwords.
+          <span id="world-status"></span> · <a href="/" target="_blank" style="color:#c2387f">open the game →</a></p>
+      </div>
+      <button class="ghost right" id="logout-btn">Sign out</button>
+    </div>
+
+    <div class="row" id="create-row">
+      <input id="new-user" placeholder="Username (3–16, a–z 0–9 _)" style="width:200px" />
+      <input id="new-pass" placeholder="Starting password" style="width:170px" />
+      <select id="new-gender">
+        <option value="male">🙎‍♂️ Him (male)</option>
+        <option value="female">🙎‍♀️ Her (female)</option>
+      </select>
+      <input id="new-name" placeholder="Display name (optional)" style="width:170px" />
+      <button id="create-btn">Create user ➕</button>
+    </div>
+    <div id="msg"></div>
+
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Username</th><th>Role</th><th>Character</th><th>Display name</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody id="user-rows"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let token = sessionStorage.getItem('cw_admin_token');
+
+    async function api(url, method = 'GET', body) {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          ...(body ? { 'Content-Type': 'application/json' } : {}),
+          ...(token ? { Authorization: 'Bearer ' + token } : {}),
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'request failed (' + res.status + ')');
+      return data;
+    }
+
+    function msg(text, cls) {
+      $('msg').innerHTML = text ? '<div class="' + cls + '">' + text + '</div>' : '';
+    }
+
+    function renderUsers(users) {
+      $('user-rows').innerHTML = users.map((u) => `
+        <tr data-id="${u.id}">
+          <td>${u.id}</td>
+          <td><b>${u.username}</b></td>
+          <td><span class="tag ${u.role}">${u.role}</span></td>
+          <td>
+            ${u.role === 'admin' && !u.gender ? '—' : `
+            <select class="gender-sel">
+              <option value="male" ${u.gender === 'male' ? 'selected' : ''}>🙎‍♂️ male</option>
+              <option value="female" ${u.gender === 'female' ? 'selected' : ''}>🙎‍♀️ female</option>
+              ${!u.gender ? '<option value="" selected>— none —</option>' : ''}
+            </select>`}
+          </td>
+          <td>${u.displayName || '<span style="color:#b09ab0">—</span>'}</td>
+          <td>${u.mustChangePassword
+            ? '<span class="tag pending">temp password</span>'
+            : u.firstLoginDone ? '✅ active' : '🕐 never signed in'}</td>
+          <td class="row" style="justify-content:flex-end">
+            <button class="ghost reset-btn">Reset password</button>
+            <button class="danger del-btn">Delete</button>
+          </td>
+        </tr>`).join('');
+
+      for (const tr of $('user-rows').children) {
+        const id = tr.dataset.id;
+        const sel = tr.querySelector('.gender-sel');
+        if (sel) sel.onchange = async () => {
+          try { await api('/api/admin/users/' + id, 'PUT', { gender: sel.value }); msg('Character updated ✔', 'ok'); }
+          catch (e) { msg(e.message, 'err'); }
+          refresh();
+        };
+        tr.querySelector('.reset-btn').onclick = async () => {
+          const pw = prompt('New temporary password (min 6 chars) — the user must change it on next sign-in:');
+          if (!pw) return;
+          try { await api('/api/admin/users/' + id, 'PUT', { password: pw }); msg('Password reset ✔', 'ok'); refresh(); }
+          catch (e) { msg(e.message, 'err'); }
+        };
+        tr.querySelector('.del-btn').onclick = async () => {
+          if (!confirm('Delete this user? This cannot be undone.')) return;
+          try { await api('/api/admin/users/' + id, 'DELETE'); msg('User deleted', 'ok'); refresh(); }
+          catch (e) { msg(e.message, 'err'); }
+        };
+      }
+    }
+
+    async function refresh() {
+      renderUsers((await api('/api/admin/users')).users);
+      try {
+        const s = await api('/api/status');
+        $('world-status').textContent = `· ${s.players}/2 in the world right now`;
+      } catch { /* status is decorative */ }
+    }
+
+    async function enter() {
+      $('login-panel').classList.add('hidden');
+      $('pw-panel').classList.add('hidden');
+      $('admin-panel').classList.remove('hidden');
+      await refresh();
+    }
+
+    /** first sign-in: force a real password before showing the dashboard */
+    function showPasswordPanel(currentPassword) {
+      $('login-panel').classList.add('hidden');
+      $('pw-panel').classList.remove('hidden');
+      $('pw-current').classList.toggle('hidden', !!currentPassword); // resumed sessions must type it
+      $('pw-btn').onclick = async () => {
+        $('pw-err').classList.add('hidden');
+        try {
+          const p1 = $('pw-new1').value, p2 = $('pw-new2').value;
+          if (p1.length < 6) throw new Error('new password must be at least 6 characters');
+          if (p1 !== p2) throw new Error('passwords do not match');
+          await api('/api/auth/change-password', 'POST', {
+            currentPassword: currentPassword || $('pw-current').value,
+            newPassword: p1,
+          });
+          await enter();
+        } catch (e) {
+          $('pw-err').textContent = e.message;
+          $('pw-err').classList.remove('hidden');
+        }
+      };
+    }
+
+    $('login-btn').onclick = async () => {
+      $('login-err').classList.add('hidden');
+      try {
+        const d = await api('/api/auth/login', 'POST', {
+          username: $('login-user').value.trim(),
+          password: $('login-pass').value,
+        });
+        if (d.user.role !== 'admin') throw new Error('that account is not an admin');
+        token = d.token;
+        sessionStorage.setItem('cw_admin_token', token);
+        if (d.user.mustChangePassword) showPasswordPanel($('login-pass').value);
+        else await enter();
+      } catch (e) {
+        $('login-err').textContent = e.message;
+        $('login-err').classList.remove('hidden');
+      }
+    };
+    $('login-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('login-btn').click(); });
+
+    $('logout-btn').onclick = () => { sessionStorage.removeItem('cw_admin_token'); location.reload(); };
+
+    $('create-btn').onclick = async () => {
+      try {
+        await api('/api/admin/users', 'POST', {
+          username: $('new-user').value.trim(),
+          password: $('new-pass').value,
+          gender: $('new-gender').value,
+          displayName: $('new-name').value.trim() || undefined,
+        });
+        msg('User created — they must change this password on first sign-in ✔', 'ok');
+        $('new-user').value = $('new-pass').value = $('new-name').value = '';
+        refresh();
+      } catch (e) { msg(e.message, 'err'); }
+    };
+
+    // resume an admin session if the token still works
+    if (token) {
+      api('/api/auth/me').then((d) => {
+        if (d.user.role !== 'admin') throw new Error('not admin');
+        if (d.user.mustChangePassword) showPasswordPanel(null); // must type current password
+        else enter();
+      }).catch(() => {
+        sessionStorage.removeItem('cw_admin_token');
+        token = null;
+      });
+    }
+  </script>
+</body>
+</html>

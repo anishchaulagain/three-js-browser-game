@@ -26,6 +26,7 @@
     </div>
 
     <div id="partner-status">💌 Waiting for your love to join…</div>
+    <button id="logout-btn" class="hidden" title="Sign out of your account">🚪 Sign out</button>
 
     <div id="prompt" class="hidden"></div>
     <div id="toast" class="hidden"></div>
@@ -72,11 +73,40 @@
     </div>
   </div>
 
-  <!-- ===== Character select ===== -->
+  <!-- ===== Sign in (accounts mode) ===== -->
+  <div id="login-screen" class="auth-screen hidden">
+    <div class="auth-panel">
+      <h1>Our Little World <span class="heart">💕</span></h1>
+      <p class="subtitle">Sign in to enter your world.</p>
+      <input id="login-username" maxlength="64" placeholder="Username" autocomplete="username" />
+      <input id="login-password" type="password" maxlength="72" placeholder="Password" autocomplete="current-password" />
+      <div id="login-error" class="auth-error hidden"></div>
+      <button id="login-btn">Sign in 🔐</button>
+    </div>
+  </div>
+
+  <!-- ===== First sign-in: new password + character setup ===== -->
+  <div id="setup-screen" class="auth-screen hidden">
+    <div class="auth-panel">
+      <h1>Welcome! <span class="heart">✨</span></h1>
+      <p class="subtitle" id="setup-sub">First sign-in — set your own password and style your character 💞</p>
+      <div id="setup-password-block">
+        <input id="setup-current" type="password" maxlength="72" placeholder="Current password" class="hidden" />
+        <input id="setup-pass1" type="password" maxlength="72" placeholder="New password (min 6 characters)" autocomplete="new-password" />
+        <input id="setup-pass2" type="password" maxlength="72" placeholder="Repeat new password" autocomplete="new-password" />
+      </div>
+      <input id="setup-name" maxlength="16" placeholder="Display name (optional)" autocomplete="off" />
+      <div id="setup-outfits"></div>
+      <div id="setup-error" class="auth-error hidden"></div>
+      <button id="setup-btn">Save &amp; enter 💞</button>
+    </div>
+  </div>
+
+  <!-- ===== Character select (open mode, no accounts) ===== -->
   <div id="select-screen">
     <div id="select-panel">
       <h1>Our Little World <span class="heart">💕</span></h1>
-      <p class="subtitle">A tiny open world made for exactly two people.</p>
+      <p class="subtitle">A tiny open world for you and your favorite people.</p>
       <div id="select-cards">
         <div class="char-card" data-role="male">
           <div class="char-emoji">🙎‍♂️</div>
@@ -91,15 +121,15 @@
       </div>
       <input id="name-input" maxlength="16" placeholder="Your name (optional)" autocomplete="off" />
       <button id="join-btn" disabled>Pick a character ↑</button>
-      <p class="tiny">Send your partner this same address — the world only fits two. 🔒</p>
+      <p class="tiny">Send your people this same address to join you. 🔒</p>
     </div>
   </div>
 
   <!-- ===== World full ===== -->
   <div id="full-screen" class="hidden">
     <div id="select-panel">
-      <h1>💔 World is full</h1>
-      <p class="subtitle">This little world belongs to two people already.<br/>Maybe build one of your own?</p>
+      <h1>💔 Can't enter right now</h1>
+      <p class="subtitle" id="full-subtitle">The world is at capacity right now.<br/>Try again in a little while.</p>
     </div>
   </div>
 

@@ -285,6 +285,15 @@ export class Avatar {
     this.headGroup.rotation.y = L(this.headGroup.rotation.y, a === 'sleep' ? 0 : this.lookYaw + sway);
     this.headGroup.rotation.x = L(this.headGroup.rotation.x, a === 'sleep' ? 0 : this.lookPitch);
 
+    // chat bubble + name tag follow the head when lying down — the sleep pose
+    // puts the head behind the root just above the pillow, and the bedroom
+    // camera sits too low to see anchors left at standing height
+    const lying = a === 'sleep';
+    this.bubbleAnchor.position.y = L(this.bubbleAnchor.position.y, lying ? 1.2 : 2.95);
+    this.bubbleAnchor.position.z = L(this.bubbleAnchor.position.z, lying ? -1.6 : 0);
+    this.nameAnchor.position.y = L(this.nameAnchor.position.y, lying ? 0.95 : 2.42);
+    this.nameAnchor.position.z = L(this.nameAnchor.position.z, lying ? -1.6 : 0);
+
     // floating emotes
     for (let i = this.emotes.length - 1; i >= 0; i--) {
       const e = this.emotes[i];

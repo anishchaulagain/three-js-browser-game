@@ -1,14 +1,24 @@
-/** Entry point — boot the game. */
+/** Entry point — sign in (when accounts are on), then boot the game. */
+import { runAuthFlow } from './authclient.js';
 import { Game } from './game.js';
 
-const game = new Game();
-game.start();
+(async () => {
+  let auth = null;
+  try {
+    auth = await runAuthFlow(); // null in open mode
+  } catch (e) {
+    console.error('auth flow failed — falling back to open mode:', e);
+  }
 
-// debug hook (handy for testing/poking around in devtools)
-window.__game = {
-  get controller() { return game.controller; },
-  get net() { return game.net; },
-  get ui() { return game.ui; },
-  get world() { return game.world; },
-  game,
-};
+  const game = new Game(auth);
+  game.start();
+
+  // debug hook (handy for testing/poking around in devtools)
+  window.__game = {
+    get controller() { return game.controller; },
+    get net() { return game.net; },
+    get ui() { return game.ui; },
+    get world() { return game.world; },
+    game,
+  };
+})();
