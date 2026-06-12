@@ -102,6 +102,11 @@ export class PlayerController {
     this.vy = 0;
     this.anim = anim;
     this.speed = 0;
+    if (anim === 'sleep' && this.firstPerson) {
+      // open your eyes looking up, tipped a little toward your feet
+      this.yaw = this.ry + Math.PI;
+      this.pitch = -1.1;
+    }
   }
 
   standUp() {
@@ -110,6 +115,8 @@ export class PlayerController {
     this.pos.set(e.x, heightAt(e.x, e.z), e.z);
     this.seated = null;
     this.anim = 'idle';
+    // back within the standing camera's pitch range (sleep allows steeper)
+    this.pitch = THREE.MathUtils.clamp(this.pitch, this.firstPerson ? -1.25 : -0.5, 1.25);
   }
 
   _moveInput() {
@@ -244,13 +251,15 @@ export class PlayerController {
     if (this.firstPerson) {
       if (this.anim === 'sleep') {
         // lying on your back: the sleep pose folds the body backward, so the
-        // head rests behind the root, just above the pillow — gaze upward
+        // head rests behind the root, just above the pillow
         const fwd = new THREE.Vector3(Math.sin(this.ry), 0, Math.cos(this.ry));
         const eyes = new THREE.Vector3(this.pos.x, this.pos.y + 0.55, this.pos.z).addScaledVector(fwd, -1.55);
         this.camera.position.copy(eyes);
         this._camPos.copy(eyes);
-        // tipped slightly toward the feet (a dead-vertical gaze has no 'up')
-        this.camera.lookAt(eyes.x + fwd.x * 0.45, eyes.y + 1, eyes.z + fwd.z * 0.45);
+        // free look from the pillow — clamped so you can't stare into the mattress
+        this.pitch = Math.min(this.pitch, -0.15);
+        const lp = Math.cos(this.pitch), lq = Math.sin(this.pitch);
+        this.camera.lookAt(eyes.x - Math.sin(this.yaw) * lp, eyes.y - lq, eyes.z - Math.cos(this.yaw) * lp);
         return;
       }
       const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
