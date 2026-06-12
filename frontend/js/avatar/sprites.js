@@ -27,38 +27,50 @@ export function textSprite(text, { font = 'bold 56px "Segoe UI", sans-serif', co
 }
 
 export function bubbleSprite(text) {
-  const tex = makeCanvasTexture((ctx, w, h) => {
-    // word-wrap into up to 2 lines
-    ctx.font = 'bold 38px "Segoe UI", sans-serif';
-    const words = text.split(' ');
-    const lines = [''];
-    for (const word of words) {
-      const t = (lines[lines.length - 1] + ' ' + word).trim();
-      if (ctx.measureText(t).width > w - 90 && lines[lines.length - 1]) lines.push(word);
-      else lines[lines.length - 1] = t;
+  const W = 512, FONT = 'bold 38px "Segoe UI", sans-serif', LINE_H = 44, MAX_W = W - 90;
+
+  // word-wrap into as many lines as the message needs; words longer than a
+  // whole line (no spaces) get broken character by character
+  const scratch = document.createElement('canvas').getContext('2d');
+  scratch.font = FONT;
+  const lines = [];
+  let cur = '';
+  for (const word of text.split(' ')) {
+    const tryLine = cur ? cur + ' ' + word : word;
+    if (scratch.measureText(tryLine).width <= MAX_W) { cur = tryLine; continue; }
+    if (cur) { lines.push(cur); cur = ''; }
+    let chunk = '';
+    for (const ch of word) {
+      if (scratch.measureText(chunk + ch).width > MAX_W && chunk) { lines.push(chunk); chunk = ch; }
+      else chunk += ch;
     }
-    if (lines.length > 2) { lines.length = 2; lines[1] += '…'; }
-    const r = 26;
+    cur = chunk;
+  }
+  if (cur) lines.push(cur);
+
+  // canvas grows with the text: rounded box + tail underneath
+  const rectH = lines.length * LINE_H + 26;
+  const H = 8 + rectH + 26;
+  const tex = makeCanvasTexture((ctx, w, h) => {
+    ctx.font = FONT;
     ctx.fillStyle = 'rgba(255,255,255,0.94)';
     ctx.beginPath();
-    ctx.roundRect(14, 8, w - 28, h - 34, r);
+    ctx.roundRect(14, 8, w - 28, rectH, 26);
     ctx.fill();
-    // little tail
+    const tailTop = 8 + rectH - 2;
     ctx.beginPath();
-    ctx.moveTo(w / 2 - 16, h - 28);
-    ctx.lineTo(w / 2, h - 4);
-    ctx.lineTo(w / 2 + 16, h - 28);
+    ctx.moveTo(w / 2 - 16, tailTop);
+    ctx.lineTo(w / 2, tailTop + 22);
+    ctx.lineTo(w / 2 + 16, tailTop);
     ctx.fill();
     ctx.fillStyle = '#3a2440';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const cy = lines.length === 1 ? (h - 26) / 2 + 8 : 0;
-    lines.forEach((ln, i) =>
-      ctx.fillText(ln, w / 2, lines.length === 1 ? cy : 34 + i * 44)
-    );
-  }, 512, 144);
+    lines.forEach((ln, i) => ctx.fillText(ln, w / 2, 43 + i * LINE_H));
+  }, W, H);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-  sp.scale.set(2.6, 0.73, 1);
+  sp.center.set(0.5, 0); // anchor at the tail tip, so tall bubbles grow upward
+  sp.scale.set(2.6, 2.6 * H / W, 1);
   return sp;
 }
 
