@@ -94,7 +94,7 @@ export class Theater {
   }
 
   async _ensurePlayer(videoId) {
-    if (this.player) return;
+    if (this.player || this._creating) return; // guard the async gap — one player only
     this._creating = true;
     await this._api();
     this.player = new YT.Player(this.host, {
@@ -144,13 +144,24 @@ export class Theater {
     else this._hideJoin();
   }
 
-  /** browsers may block un-gestured playback — offer a one-tap rescue */
+  /**
+   * Browsers block un-gestured playback with sound — but MUTED autoplay is
+   * always allowed. If play didn't take, start the movie silently (so the
+   * partner sees it in sync immediately) and offer one tap for sound.
+   */
   _verifyPlaying() {
     clearTimeout(this._verifyTimer);
     this._verifyTimer = setTimeout(() => {
-      if (this.state?.playing && this.playerReady && this.player.getPlayerState() !== 1) {
-        document.getElementById('theater-join').classList.remove('hidden');
-      }
+      if (!this.state?.playing || !this.playerReady) return;
+      const st = this.player.getPlayerState();
+      if (st === 1 || st === 3) return; // playing or buffering — all good
+      this.player.mute();
+      this._muted = true;
+      this.player.seekTo(this._targetTime(), true);
+      this.player.playVideo();
+      const btn = document.getElementById('theater-join');
+      btn.textContent = '🔊 Tap for sound';
+      btn.classList.remove('hidden');
     }, 1500);
   }
 
@@ -208,10 +219,14 @@ export class Theater {
     });
     $('theater-join').onclick = () => {
       this._hideJoin();
-      if (this.playerReady && this.state) {
-        this.player.seekTo(this._targetTime(), true);
-        this.player.playVideo(); // a real user gesture — always allowed
+      if (!this.playerReady || !this.state) return;
+      if (this._muted) {
+        this.player.unMute(); // the movie is already rolling silently
+        this._muted = false;
+        return;
       }
+      this.player.seekTo(this._targetTime(), true);
+      this.player.playVideo(); // a real user gesture — always allowed
     };
   }
 
@@ -238,6 +253,15 @@ export class Theater {
       this._volTimer = 0;
       const d = Math.hypot(playerPos.x - this.screen.x, playerPos.z - this.screen.z);
       this.player.setVolume(Math.round(THREE.MathUtils.clamp(1 - (d - 5) / 18, 0, 1) * 100));
+    }
+    // gentle drift correction during long movies (buffering, tab naps…)
+    this._driftTimer = (this._driftTimer || 0) + dt;
+    if (this._driftTimer > 10) {
+      this._driftTimer = 0;
+      if (this.state?.playing && this.playerReady && this.player.getPlayerState() === 1) {
+        const drift = Math.abs((this.player.getCurrentTime() || 0) - this._targetTime());
+        if (drift > 2.5) this.player.seekTo(this._targetTime(), true);
+      }
     }
   }
 
