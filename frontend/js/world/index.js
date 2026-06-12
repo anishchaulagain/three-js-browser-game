@@ -16,6 +16,7 @@ import { buildRoads } from './roads.js';
 import { buildSecrets } from './secrets.js';
 import { buildGarden } from './garden.js';
 import { buildLandmarks } from './landmarks.js';
+import { buildTower } from './tower.js';
 import { createTraffic } from './traffic.js';
 import { createCoupleCar } from './car.js';
 
@@ -47,13 +48,15 @@ export function createWorld(scene) {
   const secrets = buildSecrets(ctx);
   const garden = buildGarden(ctx);
   const landmarks = buildLandmarks(ctx); // park, lake, windmill, ponds, summit
+  const tower = buildTower(ctx);         // Tower of Love obby — rebuilds every round
   const traffic = createTraffic(scene);
   const car = createCoupleCar(ctx); // updated by Game each frame (driver input / net sync)
 
   chunks.prime(0, -10, 170); // ground under the house/spawn before the first frame
 
-  /** Advance the whole environment; returns night ∈ [0,1]. */
-  function update(t, dt, playerPos) {
+  /** Advance the whole environment; returns night ∈ [0,1].
+      elapsedMs = server-synced world clock, drives the tower's round seed. */
+  function update(t, dt, playerPos, elapsedMs = 0) {
     chunks.update(playerPos.x, playerPos.z);
     const night = sky.update(t, dt, playerPos);
     house.update(night, playerPos);
@@ -62,6 +65,7 @@ export function createWorld(scene) {
     secrets.update(night);
     garden.update(dt);
     landmarks.update(dt, night);
+    tower.update(dt, playerPos, elapsedMs, night);
     traffic.update(dt, night);
     return night;
   }
@@ -72,6 +76,7 @@ export function createWorld(scene) {
     interactables: ctx.interactables,
     mapFeatures: ctx.mapFeatures,
     car,
+    tower,
     update,
     isInsideHouse: house.isInsideHouse,
   };

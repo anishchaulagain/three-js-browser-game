@@ -71,6 +71,21 @@ export class Game {
 
     this._wireNetwork();
     this._wireKeys();
+
+    // Tower of Love: celebrate reaching the heart beam at the top
+    this.world.tower.setOnWin((sec) => {
+      const m = Math.floor(sec / 60), s = String(Math.floor(sec % 60)).padStart(2, '0');
+      this.ui.toast(`🗼 You reached the top in ${m}:${s}! 🏆💕`, 4200);
+      this.selfAvatar.emote('🏆');
+      this.net.sendEmote('🏆');
+      for (let i = 0; i < 10; i++) {
+        this.hearts.spawn(
+          this.controller.pos.x + (Math.random() - 0.5) * 3,
+          this.controller.pos.y + 1.5 + Math.random() * 2,
+          this.controller.pos.z + (Math.random() - 0.5) * 3
+        );
+      }
+    });
   }
 
   start() {
@@ -198,7 +213,10 @@ export class Game {
     };
 
     net.onEmote = (d) => {
-      if (this.partner && d.id === this.partner.id) this.partner.avatar.emote(d.emoji);
+      if (this.partner && d.id === this.partner.id) {
+        this.partner.avatar.emote(d.emoji);
+        if (d.emoji === '🏆') ui.toast(`🗼 ${this.partner.name} reached the top of the tower! 🏆`, 3600);
+      }
     };
 
     net.onCarState = (s) => {
@@ -468,7 +486,7 @@ export class Game {
     this.hearts.update(dt);
     this._updateInteractablePrompt(state);
 
-    this._night = this.world.update(t, dt, this.controller.pos);
+    this._night = this.world.update(t, dt, this.controller.pos, this.net.worldStart ? this.net.elapsed() : 0);
     this._updateClockUI(t);
 
     this.minimap.update(dt,
