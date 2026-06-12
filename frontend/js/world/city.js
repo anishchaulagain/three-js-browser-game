@@ -319,6 +319,45 @@ export function buildCity(ctx) {
     });
   });
 
+  /* ============ plaza corner shops — the tiny downtown ============ */
+  building({ x: -30, z: 56, w: 9, d: 8, h: 5, color: 0xf7e0c0, roofStyle: 'pyramid', roofColor: 0xc9874a, sign: 'Sweet Scoop 🍦', awningColor: 0xf2a0b5 });
+  interactables.push({
+    x: -30, z: 60.8, radius: 1.8,
+    label: 'share a sundae 🍦', type: 'moment',
+    data: { emoji: '🍦', toast: 'One sundae, two spoons 🍦💕' },
+  });
+  building({ x: 30, z: 56, w: 9, d: 8, h: 5, color: 0x6e5fa8, roofColor: 0x4a3f78, sign: 'Pixel Arcade 🕹️' });
+  interactables.push({
+    x: 30, z: 60.8, radius: 1.8,
+    label: 'play arcade games 🕹️', type: 'moment',
+    data: { emoji: '🕹️', toast: 'New co-op high score! 🕹️💞' },
+  });
+  building({ x: -30, z: 84, w: 9, d: 8, h: 5, color: 0xdde6e0, roofStyle: 'pyramid', roofColor: 0x7f9a93, face: Math.PI, sign: 'Gallery 🖼️' });
+  interactables.push({
+    x: -30, z: 79.2, radius: 1.8,
+    label: 'wander the gallery 🖼️', type: 'moment',
+    data: { emoji: '🖼️', toast: 'Every painting reminds you of them 🖼️💘' },
+  });
+  building({ x: 30, z: 84, w: 9, d: 8, h: 6, color: 0xc97b63, roofColor: 0x8a4a3a, face: Math.PI, sign: 'Jazz Corner 🎷' });
+  interactables.push({
+    x: 30, z: 79.2, radius: 1.8,
+    label: 'slow dance to jazz 🎷', type: 'moment',
+    data: { emoji: '🎷', toast: 'A slow dance under warm lights 🎷❤️' },
+  });
+
+  /* ============ street trees between the shops ============ */
+  for (const [tx, tz] of [[-42, 52], [42, 52], [-42, 88], [42, 88], [-14, 52], [14, 52], [-14, 88], [14, 88]]) {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.26, 1.9, 8), mat(0x6f4e37));
+    trunk.position.set(tx, 0.95, tz);
+    trunk.castShadow = true;
+    scene.add(trunk);
+    const blob = new THREE.Mesh(new THREE.SphereGeometry(1.25, 10, 8), mat(0x3cb371));
+    blob.position.set(tx, 2.7, tz);
+    blob.castShadow = true;
+    scene.add(blob);
+    ctx.colliders.push({ type: 'circle', x: tx, z: tz, r: 0.35 });
+  }
+
   /* ============ street lamps along the avenues ============ */
   for (const lz of [47.8, 92.2]) {
     for (const lx of [-44, -22, 22, 44]) lampPost(lx, lz); // none at x=0 — that's the plaza walkway

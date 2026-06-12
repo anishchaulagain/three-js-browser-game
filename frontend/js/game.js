@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import { createWorld } from './world/index.js';
+import { heightAt } from './world/terrain.js';
 import { Avatar } from './avatar/avatar.js';
 import { PlayerController } from './controls.js';
 import { Network } from './network.js';
@@ -31,7 +32,7 @@ export class Game {
     document.body.prepend(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 600);
+    this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 900);
     this.camera.position.set(20, 10, 8);
     window.addEventListener('resize', () => this._onResize());
 
@@ -110,7 +111,7 @@ export class Game {
   exitCar() {
     const e = this.world.car.exitWorld(this.carSeat);
     this.controller.vehicle = null;
-    this.controller.pos.set(e.x, 0, e.z);
+    this.controller.pos.set(e.x, heightAt(e.x, e.z), e.z);
     this.controller.anim = 'idle';
     this.carSeat = null;
     this.net.sendCarSeat(null);
@@ -131,7 +132,7 @@ export class Game {
     this.net.sendGift(key);
     this.selfAvatar.emote(f.emoji);
     const g = this.partner.avatar.group.position;
-    this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 4);
+    this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 4, this.controller.pos.y);
     this.ui.toast(`You gave ${this.partner.name} a ${f.name} ${f.emoji}`, 2800);
   }
 
@@ -222,7 +223,7 @@ export class Game {
       if (this.pocket.length < POCKET_MAX) this.addToPocket(key);
       this.partner.avatar.emote(f.emoji);
       const g = this.partner.avatar.group.position;
-      this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 4);
+      this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 4, this.controller.pos.y);
       ui.toast(`${this.partner.name} gave you a ${f.name} ${f.emoji}!`, 3200);
     };
 
@@ -294,7 +295,7 @@ export class Game {
         this.net.sendEmote(emoji);
         if (emoji === '😘' && this.partner && this.distanceToPartner() < KISS_DISTANCE) {
           const g = this.partner.avatar.group.position;
-          this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z);
+          this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 5, this.controller.pos.y);
         }
       }
     });
@@ -362,7 +363,7 @@ export class Game {
       this._heartTimer = 0;
       this.hearts.spawn(
         (this.controller.pos.x + g.position.x) / 2,
-        2.2,
+        (this.controller.pos.y + g.position.y) / 2 + 2.2,
         (this.controller.pos.z + g.position.z) / 2
       );
     }

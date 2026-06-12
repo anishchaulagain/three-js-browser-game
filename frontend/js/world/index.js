@@ -8,11 +8,13 @@
  */
 import { mulberry32, WORLD_SEED } from './rng.js';
 import { createSky } from './sky.js';
+import { createChunks } from './chunks.js';
 import { buildHouse } from './house.js';
 import { buildNature } from './nature.js';
 import { buildCity } from './city.js';
 import { buildSecrets } from './secrets.js';
 import { buildGarden } from './garden.js';
+import { buildLandmarks } from './landmarks.js';
 import { createTraffic } from './traffic.js';
 import { createCoupleCar } from './car.js';
 
@@ -36,22 +38,28 @@ export function createWorld(scene) {
   };
 
   const sky = createSky(scene, rng);
+  const chunks = createChunks(ctx); // streamed ground + wild vegetation
   const house = buildHouse(ctx);
   const nature = buildNature(ctx);
   const city = buildCity(ctx);
   const secrets = buildSecrets(ctx);
   const garden = buildGarden(ctx);
+  const landmarks = buildLandmarks(ctx); // park, lake, windmill, ponds, summit
   const traffic = createTraffic(scene);
   const car = createCoupleCar(ctx); // updated by Game each frame (driver input / net sync)
 
+  chunks.prime(0, -10, 170); // ground under the house/spawn before the first frame
+
   /** Advance the whole environment; returns night ∈ [0,1]. */
   function update(t, dt, playerPos) {
+    chunks.update(playerPos.x, playerPos.z);
     const night = sky.update(t, dt, playerPos);
     house.update(night, playerPos);
     nature.update(night, dt);
     city.update(night);
     secrets.update(night);
     garden.update(dt);
+    landmarks.update(dt, night);
     traffic.update(dt, night);
     return night;
   }

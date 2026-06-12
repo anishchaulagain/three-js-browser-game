@@ -4,7 +4,7 @@
  * trees) renders once; only the player pins redraw each frame.
  */
 
-const WORLD_RADIUS = 180;
+import { WORLD_RADIUS } from './world/terrain.js';
 
 export class Minimap {
   constructor(canvas, features) {

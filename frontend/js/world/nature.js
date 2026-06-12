@@ -13,19 +13,10 @@ const GARDEN = { x: -16, z: 17 };
 export function buildNature(ctx) {
   const { scene, rng, colliders, interactables, addBoxCollider, mapFeatures } = ctx;
 
-  /* ---- ground + horizon hills ---- */
-  const ground = new THREE.Mesh(new THREE.CircleGeometry(220, 48), mat(0x57a55a));
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  scene.add(ground);
-
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 9) * Math.PI * 2 + rng() * 0.4;
-    const hill = new THREE.Mesh(new THREE.SphereGeometry(55 + rng() * 35, 16, 12), mat(0x3f6b46));
-    hill.scale.y = 0.28;
-    hill.position.set(Math.cos(a) * 200, -4, Math.sin(a) * 200);
-    scene.add(hill);
-  }
+  /* ground comes from the streamed terrain chunks (world/chunks.js) — the
+     whole original area sits on the flat core pad, so everything below is
+     still placed at y = 0. The old painted horizon hills are now real,
+     walkable hills and mountains out in the expansion ring. */
 
   /* ---- stone path from spawn to the front door ---- */
   for (let z = -2; z >= -19; z -= 1.7) {

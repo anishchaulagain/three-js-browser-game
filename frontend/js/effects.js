@@ -30,10 +30,10 @@ export class HeartEffects {
     this.hearts.push({ sp, life: 0 });
   }
 
-  /** A little burst between two points (used for kisses). */
-  burst(ax, az, bx, bz, count = 5) {
+  /** A little burst between two points (used for kisses). baseY = ground height there. */
+  burst(ax, az, bx, bz, count = 5, baseY = 0) {
     for (let i = 0; i < count; i++) {
-      this.spawn((ax + bx) / 2, 1.6 + Math.random(), (az + bz) / 2);
+      this.spawn((ax + bx) / 2, baseY + 1.6 + Math.random(), (az + bz) / 2);
     }
   }
 

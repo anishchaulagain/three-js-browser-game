@@ -11,14 +11,14 @@ export function box(w, h, d, material) {
   return m;
 }
 
-/** Build a flower (stem + blocky head) at x,z. */
-export function addFlower(scene, x, z, color) {
+/** Build a flower (stem + blocky head) at x,z. `y` is the ground height there. */
+export function addFlower(scene, x, z, color, y = 0) {
   const stem = box(0.05, 0.32, 0.05, mat(0x3f7d3f));
-  stem.position.set(x, 0.16, z);
+  stem.position.set(x, y + 0.16, z);
   stem.castShadow = false;
   scene.add(stem);
   const head = box(0.14, 0.14, 0.14, mat(color));
-  head.position.set(x, 0.36, z);
+  head.position.set(x, y + 0.36, z);
   head.castShadow = false;
   scene.add(head);
 }

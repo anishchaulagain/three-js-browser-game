@@ -42,14 +42,16 @@ export function createSky(scene, rng) {
     new THREE.MeshBasicMaterial({ color: 0xdfe7ff, fog: false }));
   scene.add(sunBall, moonBall);
 
-  scene.fog = new THREE.Fog(0x87cefa, 60, 240);
+  // far value reaches past the chunk-streaming radius; the coarse far-terrain
+  // mesh fills everything between, so mountains silhouette through the haze
+  scene.fog = new THREE.Fog(0x87cefa, 60, 480);
 
   /* stars */
   let starMat;
   {
     const n = 350, pos = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
-      const a = rng() * Math.PI * 2, e = rng() * Math.PI * 0.46 + 0.06, r = 230;
+      const a = rng() * Math.PI * 2, e = rng() * Math.PI * 0.46 + 0.06, r = 540;
       pos[i * 3] = Math.cos(a) * Math.cos(e) * r;
       pos[i * 3 + 1] = Math.sin(e) * r;
       pos[i * 3 + 2] = Math.sin(a) * Math.cos(e) * r;
@@ -57,14 +59,14 @@ export function createSky(scene, rng) {
     const starGeo = new THREE.BufferGeometry();
     starGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     starMat = new THREE.PointsMaterial({
-      color: 0xffffff, size: 1.6, sizeAttenuation: true, transparent: true, opacity: 0, fog: false, depthWrite: false,
+      color: 0xffffff, size: 3.2, sizeAttenuation: true, transparent: true, opacity: 0, fog: false, depthWrite: false,
     });
     scene.add(new THREE.Points(starGeo, starMat));
   }
 
   /* clouds */
   const clouds = [];
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 14; i++) {
     const g = new THREE.Group();
     const cm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, transparent: true, opacity: 0.92 });
     const n = 3 + Math.floor(rng() * 3);
@@ -74,7 +76,7 @@ export function createSky(scene, rng) {
       puff.scale.y = 0.55;
       g.add(puff);
     }
-    g.position.set(rng() * 280 - 140, 38 + rng() * 16, rng() * 280 - 140);
+    g.position.set(rng() * 640 - 320, 52 + rng() * 28, rng() * 640 - 320);
     scene.add(g);
     clouds.push(g);
   }
@@ -121,7 +123,7 @@ export function createSky(scene, rng) {
 
     for (const c of clouds) {
       c.position.x += dt * 0.6;
-      if (c.position.x > 160) c.position.x = -160;
+      if (c.position.x > 360) c.position.x = -360;
     }
 
     return night;
