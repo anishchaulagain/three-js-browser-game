@@ -15,6 +15,7 @@ import { Minimap } from './minimap.js';
 import { interactionHandlers } from './interactions.js';
 import { CHEATS } from './cheats.js';
 import { SecureChannel } from './crypto.js';
+import { Theater } from './theater.js';
 import {
   SPAWNS, STATE_SEND_MS, CAR_SEND_MS, EMOTE_KEYS, NUM_EMOJI, HEART_DISTANCE, KISS_DISTANCE,
   FLOWERS, POCKET_MAX, GIVE_DISTANCE,
@@ -24,13 +25,16 @@ export class Game {
   /** auth = { token, profile } when accounts are on, or null in open mode */
   constructor(auth = null) {
     this.auth = auth;
-    /* renderer / scene / camera */
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    /* renderer / scene / camera — alpha so the theater screen can punch a
+       hole through to the YouTube layer behind the canvas */
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.domElement.style.position = 'relative';
+    this.renderer.domElement.style.zIndex = '1'; // above the CSS3D video layer
     document.body.prepend(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
@@ -44,13 +48,21 @@ export class Game {
     this.net = new Network(auth ? auth.token : null);
     this.hearts = new HeartEffects(this.scene);
     this.secure = new SecureChannel(); // end-to-end chat encryption
+    this.theater = new Theater({
+      scene: this.scene, screen: this.world.theaterScreen, net: this.net, ui: this.ui,
+      canvas: this.renderer.domElement,
+    });
     this.minimap = new Minimap(document.getElementById('minimap'), this.world.mapFeatures);
     this.controller = new PlayerController(this.camera, this.renderer.domElement, {
       colliders: this.world.colliders,
       cameraBlockers: this.world.cameraBlockers,
       isTyping: () => this.ui.isTyping(),
-      lockAllowed: () => !this.ui.closetOpen,
+      lockAllowed: () => !this.ui.closetOpen && !this.theater.dialogOpen && !this.theater.browsing,
     });
+    // leaving the sofa pauses the movie for both of you
+    this.controller.onStandUp = (meta) => {
+      if (meta.theater) this.theater.userStood();
+    };
 
     /* state */
     this.joined = false;
@@ -230,6 +242,7 @@ export class Game {
       this.controller.enabled = true;
 
       if (d.carState) this.world.car.snapTo(d.carState); // car is where it was left
+      if (d.theaterState) this.theater.apply(d.theaterState, true); // movie mid-play? sync in
       for (const p of d.others) this._addRemote(p, true);
 
       this.joined = true;
@@ -279,6 +292,8 @@ export class Game {
     net.onCarState = (s) => {
       if (this.carSeat !== 'driver') this.world.car.setNetState(s);
     };
+
+    net.onTheater = (s) => this.theater.apply(s, true);
 
     net.onCarSeat = (d) => {
       const r = this.remotes.get(d.id);
@@ -379,6 +394,15 @@ export class Game {
       else if (e.code === 'Backquote') { e.preventDefault(); this.ui.openCheat(); }
       else if (e.code === 'Enter' || e.code === 'KeyT') { e.preventDefault(); this.ui.openChat(); }
       else if (e.code === 'Escape' && this.ui.closetOpen) this.ui.closeCloset();
+      else if (e.code === 'KeyY' && this.controller.seated && this.controller.seated.theater) {
+        this.theater.openDialog();
+      }
+      else if (e.code === 'KeyP' && this.controller.seated && this.controller.seated.theater) {
+        this.theater.togglePlay();
+      }
+      else if (e.code === 'KeyU' && this.controller.seated && this.controller.seated.theater) {
+        this.theater.toggleBrowse();
+      }
       else if (EMOTE_KEYS[e.code]) this._emote(EMOTE_KEYS[e.code]);
       else if (e.shiftKey && NUM_EMOJI[e.code]) {
         e.preventDefault();
@@ -495,7 +519,9 @@ export class Game {
     }
     if (this.controller.seated) {
       this.currentInteractable = null;
-      this.ui.showPrompt('Press <b>E</b> or move to get up');
+      this.ui.showPrompt(this.controller.seated.theater
+        ? '🍿 <b>Y</b> — screen · <b>P</b> — play/pause · <b>U</b> — surf · <b>E</b> — get up'
+        : 'Press <b>E</b> or move to get up');
       return;
     }
     let best = null, bestD = Infinity;
@@ -526,6 +552,7 @@ export class Game {
       this.camera.lookAt(this._introTarget);
       this.world.update(t, dt, this._introTarget);
       this.renderer.render(this.scene, this.camera);
+      this.theater.render(this.camera);
       return;
     }
 
@@ -566,6 +593,7 @@ export class Game {
     this._updateInteractablePrompt(state);
 
     this._night = this.world.update(t, dt, this.controller.pos, this.net.worldStart ? this.net.elapsed() : 0);
+    this.theater.update(dt, this.controller.pos);
     this._updateClockUI(t);
 
     this.minimap.update(dt,
@@ -576,5 +604,6 @@ export class Game {
       { x: this.world.car.state.x, z: this.world.car.state.z });
 
     this.renderer.render(this.scene, this.camera);
+    this.theater.render(this.camera);
   }
 }

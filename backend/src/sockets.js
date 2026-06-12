@@ -7,6 +7,8 @@ const db = require('./db');
 function registerSockets(io, players) {
   /** last known couple-car state, so a late joiner finds the car where it was left */
   let carState = null;
+  /** shared home-theater state: {v, playing, t, at} — late joiners sync right in */
+  let theaterState = null;
 
   const broadcastRoles = () =>
     io.emit('roles', { taken: players.takenRoles(), count: players.size });
@@ -83,6 +85,7 @@ function registerSockets(io, players) {
         self: player,
         others: players.othersOf(socket.id),
         carState,
+        theaterState,
         ...timeInfo(),
       });
       socket.broadcast.emit('player_joined', player);
@@ -136,6 +139,27 @@ function registerSockets(io, players) {
         v: typeof s.v === 'number' ? s.v : 0,
       };
       socket.broadcast.emit('car_state', carState);
+    });
+
+    socket.on('theater', (s) => {
+      // home-theater sync: a YouTube movie or a shared website
+      //   {mode:'yt', v: 11-char id, playing, t}  |  {mode:'web', url}
+      const p = players.get(socket.id);
+      if (!p || !s) return;
+      if (s.mode === 'web') {
+        if (typeof s.url !== 'string' || s.url.length > 500 || !/^https?:\/\//i.test(s.url)) return;
+        theaterState = { mode: 'web', url: s.url, at: Date.now() };
+      } else {
+        if (typeof s.v !== 'string' || !/^[\w-]{11}$/.test(s.v)) return;
+        theaterState = {
+          mode: 'yt',
+          v: s.v,
+          playing: !!s.playing,
+          t: Math.max(0, Math.min(86400, +s.t || 0)),
+          at: Date.now(),
+        };
+      }
+      socket.broadcast.emit('theater', theaterState);
     });
 
     socket.on('car_seat', (seat) => {
