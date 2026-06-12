@@ -243,6 +243,15 @@ canvas { display: block; }
   color: #fff; font-weight: 700; font-size: 13px; cursor: pointer;
 }
 #theater-buttons #theater-close { background: rgba(255,255,255,.14); }
+#browse-exit {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+  pointer-events: auto;
+  padding: 9px 18px; border: none; border-radius: 12px;
+  background: rgba(24, 18, 40, 0.92); color: #ffd9ec;
+  border: 2px solid rgba(255, 158, 203, 0.5);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.5);
+}
 #theater-join {
   position: absolute; left: 50%; top: 22%; transform: translateX(-50%);
   pointer-events: auto;

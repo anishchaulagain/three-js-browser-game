@@ -155,6 +155,21 @@ async function main() {
   s1c.emit('theater', { v: 'bad id!', playing: true, t: 0 });
   await new Promise((r2) => setTimeout(r2, 150)); // invalid ids are dropped server-side
 
+  /* shared web browsing relays too — and unsafe URLs are dropped */
+  const webMsg = once(s2, 'theater');
+  s1c.emit('theater', { mode: 'web', url: 'https://en.wikipedia.org/wiki/Love' });
+  const web = await webMsg;
+  assert(web.mode === 'web' && web.url === 'https://en.wikipedia.org/wiki/Love',
+    'website state relays to the partner');
+  let badWeb = false;
+  s2.once('theater', () => { badWeb = true; });
+  s1c.emit('theater', { mode: 'web', url: 'javascript:alert(1)' });
+  await new Promise((r2) => setTimeout(r2, 200));
+  assert(!badWeb, 'non-http(s) URLs are dropped server-side');
+  // leave a movie as the final state for the late-joiner check below
+  s1c.emit('theater', { v: 'dQw4w9WgXcQ', playing: true, t: 12 });
+  await new Promise((r2) => setTimeout(r2, 150));
+
   /* ---- multiplayer: a THIRD account joins (two males may coexist) ---- */
   r = await api('/api/admin/users', {
     method: 'POST', token: adminToken,

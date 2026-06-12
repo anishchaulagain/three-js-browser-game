@@ -50,13 +50,14 @@ export class Game {
     this.secure = new SecureChannel(); // end-to-end chat encryption
     this.theater = new Theater({
       scene: this.scene, screen: this.world.theaterScreen, net: this.net, ui: this.ui,
+      canvas: this.renderer.domElement,
     });
     this.minimap = new Minimap(document.getElementById('minimap'), this.world.mapFeatures);
     this.controller = new PlayerController(this.camera, this.renderer.domElement, {
       colliders: this.world.colliders,
       cameraBlockers: this.world.cameraBlockers,
       isTyping: () => this.ui.isTyping(),
-      lockAllowed: () => !this.ui.closetOpen && !this.theater.dialogOpen,
+      lockAllowed: () => !this.ui.closetOpen && !this.theater.dialogOpen && !this.theater.browsing,
     });
     // leaving the sofa pauses the movie for both of you
     this.controller.onStandUp = (meta) => {
@@ -399,6 +400,9 @@ export class Game {
       else if (e.code === 'KeyP' && this.controller.seated && this.controller.seated.theater) {
         this.theater.togglePlay();
       }
+      else if (e.code === 'KeyU' && this.controller.seated && this.controller.seated.theater) {
+        this.theater.toggleBrowse();
+      }
       else if (EMOTE_KEYS[e.code]) this._emote(EMOTE_KEYS[e.code]);
       else if (e.shiftKey && NUM_EMOJI[e.code]) {
         e.preventDefault();
@@ -516,7 +520,7 @@ export class Game {
     if (this.controller.seated) {
       this.currentInteractable = null;
       this.ui.showPrompt(this.controller.seated.theater
-        ? '🍿 <b>Y</b> — pick a movie · <b>P</b> — play/pause · <b>E</b> or move — get up'
+        ? '🍿 <b>Y</b> — screen · <b>P</b> — play/pause · <b>U</b> — surf · <b>E</b> — get up'
         : 'Press <b>E</b> or move to get up');
       return;
     }

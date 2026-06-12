@@ -142,15 +142,23 @@ function registerSockets(io, players) {
     });
 
     socket.on('theater', (s) => {
-      // home-theater sync: {v: 11-char video id, playing, t seconds}
+      // home-theater sync: a YouTube movie or a shared website
+      //   {mode:'yt', v: 11-char id, playing, t}  |  {mode:'web', url}
       const p = players.get(socket.id);
-      if (!p || !s || typeof s.v !== 'string' || !/^[\w-]{11}$/.test(s.v)) return;
-      theaterState = {
-        v: s.v,
-        playing: !!s.playing,
-        t: Math.max(0, Math.min(86400, +s.t || 0)),
-        at: Date.now(),
-      };
+      if (!p || !s) return;
+      if (s.mode === 'web') {
+        if (typeof s.url !== 'string' || s.url.length > 500 || !/^https?:\/\//i.test(s.url)) return;
+        theaterState = { mode: 'web', url: s.url, at: Date.now() };
+      } else {
+        if (typeof s.v !== 'string' || !/^[\w-]{11}$/.test(s.v)) return;
+        theaterState = {
+          mode: 'yt',
+          v: s.v,
+          playing: !!s.playing,
+          t: Math.max(0, Math.min(86400, +s.t || 0)),
+          at: Date.now(),
+        };
+      }
       socket.broadcast.emit('theater', theaterState);
     });
 

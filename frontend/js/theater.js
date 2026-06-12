@@ -29,14 +29,16 @@ const parseYouTubeId = (input) => {
 };
 
 export class Theater {
-  constructor({ scene, screen, net, ui }) {
+  constructor({ scene, screen, net, ui, canvas }) {
     this.net = net;
     this.ui = ui;
     this.screen = screen;
-    this.state = null;        // {v, playing, t, at(serverMs)} — the shared truth
+    this.canvas = canvas;     // the WebGL canvas — released to the page in browse mode
+    this.state = null;        // {mode:'yt', v, playing, t, at} | {mode:'web', url, at}
     this.player = null;
     this.playerReady = false;
     this.currentV = null;
+    this.browsing = false;    // mouse handed to the web page?
     this._volTimer = 0;
     this._verifyTimer = null;
 
@@ -52,11 +54,28 @@ export class Theater {
       this.cssRenderer.setSize(window.innerWidth, window.innerHeight));
 
     const el = document.createElement('div');
-    Object.assign(el.style, { width: `${PX_W}px`, height: `${PX_H}px`, background: '#0a0a10' });
+    Object.assign(el.style, {
+      width: `${PX_W}px`, height: `${PX_H}px`, background: '#0a0a10',
+      position: 'relative', pointerEvents: 'none', // browse mode flips this on
+    });
+    this.el = el;
+    // layer 1: the YouTube player
+    this.ytWrap = document.createElement('div');
+    Object.assign(this.ytWrap.style, { position: 'absolute', inset: '0' });
     this.host = document.createElement('div');
     this.host.style.width = '100%';
     this.host.style.height = '100%';
-    el.appendChild(this.host);
+    this.ytWrap.appendChild(this.host);
+    el.appendChild(this.ytWrap);
+    // layer 2: the web browser frame
+    this.webFrame = document.createElement('iframe');
+    Object.assign(this.webFrame.style, {
+      position: 'absolute', inset: '0', width: '100%', height: '100%',
+      border: '0', background: '#fff', display: 'none',
+    });
+    this.webFrame.referrerPolicy = 'no-referrer';
+    this.webFrame.allow = 'autoplay; fullscreen';
+    el.appendChild(this.webFrame);
     const cssObj = new CSS3DObject(el);
     cssObj.position.set(screen.x, screen.y, screen.z);
     cssObj.rotation.y = screen.ry;
@@ -113,12 +132,38 @@ export class Theater {
   /* ============ shared state ============ */
   /** incoming state (from the server, a peer, or ourselves) */
   apply(state, fromRemote = false) {
-    if (!state || !state.v) return;
+    if (!state) return;
+    if (state.mode === 'web') {
+      const changed = this.state?.url !== state.url;
+      this.state = state;
+      this._showWeb(state.url);
+      if (fromRemote && changed) this.ui.toast('🌐 Browsing together on the big screen', 3000);
+      return;
+    }
+    if (!state.v) return;
     const newVideo = this.state?.v !== state.v;
-    this.state = state;
+    this.state = { mode: 'yt', ...state };
+    this._showYt();
     if (fromRemote && newVideo) this.ui.toast('Movie night is starting 🍿', 3000);
     this._ensurePlayer(state.v);
     if (this.playerReady) this._sync();
+  }
+
+  _showWeb(url) {
+    if (this.playerReady && this.player.getPlayerState() === 1) this.player.pauseVideo();
+    this.ytWrap.style.display = 'none';
+    this.webFrame.style.display = 'block';
+    if (this.webFrame.src !== url) this.webFrame.src = url;
+    this._hideJoin();
+  }
+
+  _showYt() {
+    if (this.webFrame.style.display !== 'none') {
+      this.webFrame.src = 'about:blank'; // stop the site (and any of its audio)
+      this.webFrame.style.display = 'none';
+    }
+    this.ytWrap.style.display = 'block';
+    if (this.browsing) this.exitBrowse();
   }
 
   /** where the shared playhead is right now (seconds) */
@@ -172,14 +217,51 @@ export class Theater {
   /** broadcast an action and apply it locally */
   _send(playing, t, v = this.state && this.state.v) {
     if (!v) return;
-    this.net.sendTheater({ v, playing, t });
-    this.apply({ v, playing, t, at: this.net.serverNow() });
+    this.net.sendTheater({ mode: 'yt', v, playing, t });
+    this.apply({ mode: 'yt', v, playing, t, at: this.net.serverNow() });
+  }
+
+  /** open a website on the screen — synced URL for both of you */
+  openWebsite(raw) {
+    let url = String(raw || '').trim();
+    if (!url) {
+      this.ui.toast('Type a website address first 🌐', 2200);
+      return;
+    }
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    this.net.sendTheater({ mode: 'web', url });
+    this.apply({ mode: 'web', url, at: this.net.serverNow() });
+    this.ui.toast('🌐 If the screen stays blank, that site refuses to be embedded — try another', 3600);
+  }
+
+  /** hand the mouse to the page (sofa surfing) / take it back */
+  toggleBrowse() {
+    if (this.browsing) return this.exitBrowse();
+    if (this.state?.mode !== 'web') {
+      this.ui.toast('Open a website first — Y, then 🌐', 2400);
+      return;
+    }
+    this.browsing = true;
+    if (document.exitPointerLock) document.exitPointerLock();
+    this.canvas.style.pointerEvents = 'none'; // clicks fall through to the page
+    this.el.style.pointerEvents = 'auto';
+    document.getElementById('browse-exit').classList.remove('hidden');
+  }
+
+  exitBrowse() {
+    this.browsing = false;
+    this.canvas.style.pointerEvents = '';
+    this.el.style.pointerEvents = 'none';
+    document.getElementById('browse-exit').classList.add('hidden');
+    window.focus(); // pull the keyboard back from the iframe
   }
 
   /** P on the sofa: flip play/pause for both of you */
   togglePlay() {
-    if (!this.state) {
-      this.ui.toast('No movie yet — press Y and paste a YouTube link 🎬', 2600);
+    if (!this.state || this.state.mode === 'web') {
+      this.ui.toast(this.state
+        ? 'That\'s a website — P controls movies 🎬'
+        : 'No movie yet — press Y and paste a YouTube link 🎬', 2600);
       return;
     }
     if (!this.playerReady) return;
@@ -195,7 +277,8 @@ export class Theater {
 
   /** house rule: leaving the sofa pauses the movie for everyone */
   userStood() {
-    if (this.state?.playing && this.playerReady) {
+    if (this.browsing) this.exitBrowse();
+    if (this.state?.mode !== 'web' && this.state?.playing && this.playerReady) {
       this._send(false, this.player.getCurrentTime() || 0);
       this.ui.toast('Movie paused — someone got up 🍿', 2200);
     }
@@ -214,14 +297,24 @@ export class Theater {
         input.value = '';
         this.closeDialog();
       } else if (input.value.trim()) {
-        this.ui.toast("That doesn't look like a YouTube link 🤔", 2400);
-      } else if (this.state) {
+        this.ui.toast('Not a YouTube link — use 🌐 to open it as a website', 2600);
+      } else if (this.state && this.state.mode !== 'web') {
         this._send(true, this.playerReady ? this.player.getCurrentTime() || 0 : this.state.t);
         this.closeDialog();
       } else {
         this.ui.toast('Paste a YouTube link first 🎬', 2200);
       }
     };
+    $('theater-web').onclick = () => {
+      if (!input.value.trim()) {
+        this.ui.toast('Type a website address first 🌐', 2200);
+        return;
+      }
+      this.openWebsite(input.value);
+      input.value = '';
+      this.closeDialog();
+    };
+    $('browse-exit').onclick = () => this.exitBrowse();
     $('theater-pause').onclick = () => {
       if (this.state?.playing && this.playerReady) {
         this._send(false, this.player.getCurrentTime() || 0);
