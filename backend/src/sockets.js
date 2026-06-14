@@ -185,6 +185,14 @@ function registerSockets(io, players) {
       socket.broadcast.emit('car_seat', { id: socket.id, seat: p.carSeat });
     });
 
+    socket.on('hands', (msg) => {
+      // hold/let-go hands: {to: socketId, holding} — only the partner is told
+      if (!players.has(socket.id) || !msg) return;
+      const target = typeof msg.to === 'string' && players.has(msg.to) && io.sockets.sockets.get(msg.to);
+      if (!target) return;
+      target.emit('hands', { id: socket.id, holding: !!msg.holding });
+    });
+
     socket.on('chat', (msg) => {
       // E2E encrypted per recipient: {to: socketId, e: {n, c}} — the sender
       // encrypts separately for every peer; the server just routes blindly.

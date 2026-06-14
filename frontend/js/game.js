@@ -82,6 +82,7 @@ export class Game {
     this.selfAvatar = null;
     /** id → {id, role, name, outfit, avatar, target, anim, speed, look, carSeat} */
     this.remotes = new Map();
+    this.holdingWith = null;   // socket id of the partner whose hand you're holding
     this.currentInteractable = null;
     this._lastSent = 0;
     this._lastSentSig = '';
@@ -142,6 +143,68 @@ export class Game {
   distanceToPartner() {
     const n = this.nearestRemote();
     return n ? n.dist : Infinity;
+  }
+
+  /* ============ holding hands ============ */
+  _toggleHands() {
+    if (this.holdingWith) { this._releaseHands(); return; }
+    const n = this.nearestRemote();
+    if (!n || n.dist > 2.5) {
+      this.ui.toast('Walk up close to take their hand 🤝', 2200);
+      return;
+    }
+    this.holdingWith = n.remote.id;
+    this.net.sendHands({ to: n.remote.id, holding: true });
+    this.ui.toast(`💞 Holding hands with ${n.remote.name}`, 2200);
+  }
+
+  _releaseHands(silent = false) {
+    if (!this.holdingWith) return;
+    const id = this.holdingWith;
+    this.holdingWith = null;
+    if (this.selfAvatar) this.selfAvatar.setHandHold(0);
+    const r = this.remotes.get(id);
+    if (r) r.avatar.setHandHold(0);
+    this.net.sendHands({ to: id, holding: false });
+    if (!silent) this.ui.toast('Let go of hands 👋', 1600);
+  }
+
+  /** which side a target is on relative to a facing: -1 left, +1 right */
+  _sideToward(from, facingRy, to) {
+    const rightX = Math.cos(facingRy), rightZ = -Math.sin(facingRy);
+    return ((to.x - from.x) * rightX + (to.z - from.z) * rightZ) >= 0 ? 1 : -1;
+  }
+
+  /** keep the couple within arm's reach; the idle one is gently led along */
+  _tetherHands(dt) {
+    if (!this.holdingWith) return;
+    const c = this.controller;
+    if (c.seated || this.carSeat || c.dancing || c.bowTimer > 0) { this._releaseHands(true); return; }
+    const r = this.remotes.get(this.holdingWith);
+    if (!r) { this._releaseHands(true); return; } // partner gone
+    const g = r.avatar.group.position, p = c.pos;
+    const COMFY = 1.15, MAX = 1.7;
+    let dx = p.x - g.x, dz = p.z - g.z, d = Math.hypot(dx, dz) || 1e-4;
+
+    // if I'm idle and we've drifted apart, my partner is leading — follow them
+    if (!c.moving && d > COMFY) {
+      const step = Math.min(d - COMFY, 8 * dt);
+      p.x += (-dx / d) * step;
+      p.z += (-dz / d) * step;
+      if (c.grounded) {
+        p.y = heightAt(p.x, p.z);
+        c.speed = step / dt;
+        c.anim = c.speed > 0.2 ? 'walk' : c.anim;
+        c.ry = Math.atan2(-dx, -dz); // face the way I'm being pulled
+      }
+      dx = p.x - g.x; dz = p.z - g.z; d = Math.hypot(dx, dz) || 1e-4;
+    }
+    // never stretch beyond MAX, whoever is moving
+    if (d > MAX) { p.x = g.x + (dx / d) * MAX; p.z = g.z + (dz / d) * MAX; }
+
+    // both avatars reach an inner hand toward each other
+    this.selfAvatar.setHandHold(this._sideToward(p, c.ry, g));
+    r.avatar.setHandHold(this._sideToward(g, r.avatar.group.rotation.y, p));
   }
 
   /* ============ flower pocket ============ */
@@ -306,6 +369,19 @@ export class Game {
     net.onTheater = (s) => this.theater.apply(s, true);
     net.onRadio = (s) => this.radio.apply(s, true);
 
+    net.onHands = (d) => {
+      const r = this.remotes.get(d.id);
+      if (d.holding) {
+        this.holdingWith = d.id; // mutual — their hand finds yours
+        if (r) this.ui.toast(`💞 ${r.name} took your hand`, 2200);
+      } else if (this.holdingWith === d.id) {
+        this.holdingWith = null;
+        if (this.selfAvatar) this.selfAvatar.setHandHold(0);
+        if (r) r.avatar.setHandHold(0);
+        this.ui.toast(`${r ? r.name : 'They'} let go 👋`, 1600);
+      }
+    };
+
     net.onCarSeat = (d) => {
       const r = this.remotes.get(d.id);
       if (!r) return;
@@ -347,6 +423,7 @@ export class Game {
     net.onLeft = (d) => {
       const r = this.remotes.get(d.id);
       if (!r) return;
+      if (this.holdingWith === d.id) { this.holdingWith = null; if (this.selfAvatar) this.selfAvatar.setHandHold(0); }
       r.avatar.dispose(this.scene);
       this.remotes.delete(d.id);
       this.secure.removePeer(d.id);
@@ -401,6 +478,7 @@ export class Game {
       if (!this.joined || this.ui.isTyping()) return;
 
       if (e.code === 'KeyE') this._interact();
+      else if (e.code === 'KeyJ') this._toggleHands();
       else if (e.code === 'KeyF') this._giveFlower();
       else if (e.code === 'Backquote') { e.preventDefault(); this.ui.openCheat(); }
       else if (e.code === 'Enter' || e.code === 'KeyT') { e.preventDefault(); this.ui.openChat(); }
@@ -538,6 +616,11 @@ export class Game {
         : 'Press <b>E</b> or move to get up');
       return;
     }
+    if (this.holdingWith) {
+      this.currentInteractable = null;
+      this.ui.showPrompt('💞 holding hands · <b>J</b> — let go');
+      return;
+    }
     let best = null, bestD = Infinity;
     for (const it of this.world.interactables) {
       if (it.available && !it.available()) continue; // e.g. a flower that's still regrowing
@@ -547,7 +630,11 @@ export class Game {
     }
     this.currentInteractable = best;
     if (best) this.ui.showPrompt(`Press <b>E</b> to ${best.label}`);
-    else this.ui.hidePrompt();
+    else {
+      const n = this.nearestRemote();
+      if (n && n.dist < 2.5) this.ui.showPrompt('🤝 <b>J</b> — hold hands');
+      else this.ui.hidePrompt();
+    }
   }
 
   _animate() {
@@ -582,7 +669,9 @@ export class Game {
     }
 
     /* self */
-    const state = this.controller.update(dt);
+    this.controller.update(dt);
+    this._tetherHands(dt); // hold-hands constraint may nudge position/anim
+    const state = this.controller.state();
     this.selfAvatar.group.position.set(state.x, state.y, state.z);
     this.selfAvatar.group.rotation.y = state.ry;
     this.selfAvatar.setLook(state.hy, state.hp);

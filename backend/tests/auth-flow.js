@@ -162,6 +162,13 @@ async function main() {
   assert(rad.v === 'kJQP7kiw5Fk' && rad.playing === true && rad.t === 5,
     'kitchen radio state relays to the partner');
 
+  /* hold hands relays to the targeted partner */
+  const handsMsg = once(s2, 'hands');
+  s1c.emit('hands', { to: j2.self.id, holding: true });
+  const hands = await handsMsg;
+  assert(hands.id === rejoin.self.id && hands.holding === true,
+    'hold-hands relays to the partner');
+
   /* shared web browsing relays too — and unsafe URLs are dropped */
   const webMsg = once(s2, 'theater');
   s1c.emit('theater', { mode: 'web', url: 'https://en.wikipedia.org/wiki/Love' });
