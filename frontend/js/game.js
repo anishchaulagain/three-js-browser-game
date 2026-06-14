@@ -5,7 +5,8 @@
  */
 import * as THREE from 'three';
 import { createWorld } from './world/index.js';
-import { heightAt } from './world/terrain.js';
+import { heightAt, LAKE, PONDS, ROADS } from './world/terrain.js';
+import { Ambience } from './audio.js';
 import { Avatar } from './avatar/avatar.js';
 import { PlayerController } from './controls.js';
 import { Network } from './network.js';
@@ -51,6 +52,11 @@ export class Game {
     this.theater = new Theater({
       scene: this.scene, screen: this.world.theaterScreen, net: this.net, ui: this.ui,
       canvas: this.renderer.domElement,
+    });
+    this.ambience = new Ambience({
+      water: [{ x: LAKE.x, z: LAKE.z, r: LAKE.r }, ...PONDS.map((p) => ({ x: p.x, z: p.z, r: p.r }))],
+      roads: ROADS,
+      paved: [{ x: 0, z: 70, r: 13 }], // city plaza
     });
     this.minimap = new Minimap(document.getElementById('minimap'), this.world.mapFeatures);
     this.controller = new PlayerController(this.camera, this.renderer.domElement, {
@@ -246,6 +252,7 @@ export class Game {
       for (const p of d.others) this._addRemote(p, true);
 
       this.joined = true;
+      this.ambience.start(); // the join click is a valid audio-unlock gesture
       ui.hideSelect();
       ui.setupChat((text) => this._sendChat(text));
       ui.setupCheat((code) => {
@@ -394,6 +401,9 @@ export class Game {
       else if (e.code === 'Backquote') { e.preventDefault(); this.ui.openCheat(); }
       else if (e.code === 'Enter' || e.code === 'KeyT') { e.preventDefault(); this.ui.openChat(); }
       else if (e.code === 'Escape' && this.ui.closetOpen) this.ui.closeCloset();
+      else if (e.code === 'KeyM') {
+        this.ui.toast(this.ambience.toggle() ? '🔊 Sound on' : '🔇 Sound off', 1600);
+      }
       else if (e.code === 'KeyY' && this.controller.seated && this.controller.seated.theater) {
         this.theater.openDialog();
       }
@@ -594,6 +604,21 @@ export class Game {
 
     this._night = this.world.update(t, dt, this.controller.pos, this.net.worldStart ? this.net.elapsed() : 0);
     this.theater.update(dt, this.controller.pos);
+    {
+      const car = this.world.car.state;
+      const p = this.controller.pos;
+      this.ambience.update(dt, {
+        x: p.x, y: p.y, z: p.z,
+        night: this._night,
+        speed: this.controller.speed,
+        grounded: this.controller.grounded,
+        seated: !!this.controller.seated,
+        inHouse: this.world.isInsideHouse(p),
+        inCar: !!this.carSeat,
+        carV: car.v,
+        carDist: Math.hypot(p.x - car.x, p.z - car.z),
+      });
+    }
     this._updateClockUI(t);
 
     this.minimap.update(dt,
