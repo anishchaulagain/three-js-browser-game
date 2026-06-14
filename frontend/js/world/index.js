@@ -78,6 +78,7 @@ export function createWorld(scene) {
     car,
     tower,
     theaterScreen: ctx.theaterScreen, // where the home-theater video lives
+    radioSpot: ctx.radioSpot,         // the kitchen boombox (audio + LED)
     update,
     isInsideHouse: house.isInsideHouse,
   };

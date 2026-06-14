@@ -18,15 +18,9 @@
  */
 import * as THREE from 'three';
 import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
+import { loadYouTubeAPI, parseYouTubeId } from './ytapi.js';
 
 const PX_W = 800, PX_H = 450; // iframe pixels (16:9), scaled down to world size
-
-const parseYouTubeId = (input) => {
-  const s = String(input || '').trim();
-  const m = s.match(/(?:youtu\.be\/|[?&]v=|\/embed\/|\/shorts\/|\/live\/)([\w-]{11})/) ||
-            s.match(/^([\w-]{11})$/);
-  return m ? m[1] : null;
-};
 
 export class Theater {
   constructor({ scene, screen, net, ui, canvas }) {
@@ -100,22 +94,10 @@ export class Theater {
   }
 
   /* ============ YouTube IFrame API ============ */
-  _api() {
-    if (this._apiPromise) return this._apiPromise;
-    this._apiPromise = new Promise((resolve) => {
-      if (window.YT && window.YT.Player) return resolve();
-      window.onYouTubeIframeAPIReady = () => resolve();
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      document.head.appendChild(tag);
-    });
-    return this._apiPromise;
-  }
-
   async _ensurePlayer(videoId) {
     if (this.player || this._creating) return; // guard the async gap — one player only
     this._creating = true;
-    await this._api();
+    await loadYouTubeAPI();
     this.player = new YT.Player(this.host, {
       width: PX_W, height: PX_H, videoId,
       playerVars: { autoplay: 0, controls: 0, rel: 0, playsinline: 1, disablekb: 1, iv_load_policy: 3 },

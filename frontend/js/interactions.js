@@ -35,6 +35,11 @@ export const interactionHandlers = {
     game.theater.openDialog();
   },
 
+  /** the kitchen boombox — pick a song */
+  radio(game) {
+    game.radio.openDialog();
+  },
+
   cook(game) {
     game.selfAvatar.emote('🍳');
     game.net.sendEmote('🍳');

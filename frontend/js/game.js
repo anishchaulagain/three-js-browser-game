@@ -17,6 +17,7 @@ import { interactionHandlers } from './interactions.js';
 import { CHEATS } from './cheats.js';
 import { SecureChannel } from './crypto.js';
 import { Theater } from './theater.js';
+import { Radio } from './radio.js';
 import {
   SPAWNS, STATE_SEND_MS, CAR_SEND_MS, EMOTE_KEYS, NUM_EMOJI, HEART_DISTANCE, KISS_DISTANCE,
   FLOWERS, POCKET_MAX, GIVE_DISTANCE,
@@ -58,12 +59,13 @@ export class Game {
       roads: ROADS,
       paved: [{ x: 0, z: 70, r: 13 }], // city plaza
     });
+    this.radio = new Radio({ net: this.net, ui: this.ui, spot: this.world.radioSpot });
     this.minimap = new Minimap(document.getElementById('minimap'), this.world.mapFeatures);
     this.controller = new PlayerController(this.camera, this.renderer.domElement, {
       colliders: this.world.colliders,
       cameraBlockers: this.world.cameraBlockers,
       isTyping: () => this.ui.isTyping(),
-      lockAllowed: () => !this.ui.closetOpen && !this.theater.dialogOpen && !this.theater.browsing,
+      lockAllowed: () => !this.ui.closetOpen && !this.theater.dialogOpen && !this.theater.browsing && !this.radio.dialogOpen,
     });
     // leaving the sofa pauses the movie for both of you
     this.controller.onStandUp = (meta) => {
@@ -249,6 +251,7 @@ export class Game {
 
       if (d.carState) this.world.car.snapTo(d.carState); // car is where it was left
       if (d.theaterState) this.theater.apply(d.theaterState, true); // movie mid-play? sync in
+      if (d.radioState) this.radio.apply(d.radioState, true);       // music already on? join it
       for (const p of d.others) this._addRemote(p, true);
 
       this.joined = true;
@@ -301,6 +304,7 @@ export class Game {
     };
 
     net.onTheater = (s) => this.theater.apply(s, true);
+    net.onRadio = (s) => this.radio.apply(s, true);
 
     net.onCarSeat = (d) => {
       const r = this.remotes.get(d.id);
@@ -604,6 +608,11 @@ export class Game {
 
     this._night = this.world.update(t, dt, this.controller.pos, this.net.worldStart ? this.net.elapsed() : 0);
     this.theater.update(dt, this.controller.pos);
+    this.radio.update(dt, this.controller.pos);
+    if (this.world.radioSpot) { // the boombox LED glows while music plays
+      this.world.radioSpot.mat.emissiveIntensity = this.radio.playing
+        ? 0.6 + 0.4 * Math.sin(performance.now() / 180) : 0;
+    }
     {
       const car = this.world.car.state;
       const p = this.controller.pos;
