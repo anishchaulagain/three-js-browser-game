@@ -34,6 +34,14 @@ db.init()
     });
   })
   .catch((err) => {
-    console.error('[db] failed to initialize — check your .env Postgres settings:', err.message);
+    console.error('────────────────────────────────────────────');
+    console.error('[db] failed to initialize:', err.message);
+    if (/ENOTFOUND|ECONNREFUSED/.test(err.message)) {
+      console.error('[db] the database host is unreachable — the service may be');
+      console.error('[db] deleted/paused, or DATABASE_URL is wrong. In production');
+      console.error('[db] set DATABASE_URL in the host dashboard (Render → Environment),');
+      console.error('[db] then run: npm run db:migrate');
+    }
+    console.error('────────────────────────────────────────────');
     process.exit(1);
   });

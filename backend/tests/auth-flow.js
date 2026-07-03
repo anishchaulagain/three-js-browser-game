@@ -155,6 +155,20 @@ async function main() {
   s1c.emit('theater', { v: 'bad id!', playing: true, t: 0 });
   await new Promise((r2) => setTimeout(r2, 150)); // invalid ids are dropped server-side
 
+  /* kitchen radio sync — its own channel, independent of the theater */
+  const radioMsg = once(s2, 'radio');
+  s1c.emit('radio', { v: 'kJQP7kiw5Fk', playing: true, t: 5 });
+  const rad = await radioMsg;
+  assert(rad.v === 'kJQP7kiw5Fk' && rad.playing === true && rad.t === 5,
+    'kitchen radio state relays to the partner');
+
+  /* hold hands relays to the targeted partner */
+  const handsMsg = once(s2, 'hands');
+  s1c.emit('hands', { to: j2.self.id, holding: true });
+  const hands = await handsMsg;
+  assert(hands.id === rejoin.self.id && hands.holding === true,
+    'hold-hands relays to the partner');
+
   /* shared web browsing relays too — and unsafe URLs are dropped */
   const webMsg = once(s2, 'theater');
   s1c.emit('theater', { mode: 'web', url: 'https://en.wikipedia.org/wiki/Love' });
@@ -190,6 +204,8 @@ async function main() {
     'third player joins — same gender as romeo, sees 2 others');
   assert(j3.theaterState && j3.theaterState.v === 'dQw4w9WgXcQ',
     'late joiner receives the running movie state');
+  assert(j3.radioState && j3.radioState.v === 'kJQP7kiw5Fk',
+    'late joiner receives the running kitchen-music state');
 
   /* targeted E2E chat: juliet → romeo only; paris must NOT receive it */
   let parisGotChat = false;

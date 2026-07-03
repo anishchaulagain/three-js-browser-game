@@ -24,9 +24,17 @@ function registerRoutes(app, players) {
     });
   }
 
-  // simple health/status endpoint
+  // simple health/status endpoint — also your production-diagnosis friend:
+  // auth:false in production means DATABASE_URL isn't set in the host's env
   app.get('/api/status', (req, res) => {
-    res.json({ ok: true, players: players.size, roles: players.takenRoles() });
+    const db = require('./db');
+    res.json({
+      ok: true,
+      players: players.size,
+      roles: players.takenRoles(),
+      auth: db.enabled,
+      db: db.mode,
+    });
   });
 
   app.use('/api/auth', createAuthRouter());
@@ -38,6 +46,14 @@ function registerRoutes(app, players) {
   });
 
   app.use(express.static(path.join(__dirname, '..', '..', 'frontend')));
+
+  // JSON error handler — async route failures (e.g. a DB blip mid-login)
+  // answer with a clean 500 instead of a hung request or a crashed process
+  // eslint-disable-next-line no-unused-vars
+  app.use((err, req, res, next) => {
+    console.error('[api] error (recovered):', err.message);
+    if (!res.headersSent) res.status(500).json({ error: 'server hiccup — please try again' });
+  });
 }
 
 module.exports = { registerRoutes };

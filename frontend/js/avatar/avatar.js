@@ -20,6 +20,7 @@ export class Avatar {
     this.phase = 0;
     this.lookYaw = 0;   // head-tracking targets (relative to the body)
     this.lookPitch = 0;
+    this.holdSide = 0;  // -1 reach left / +1 reach right / 0 none (holding hands)
     this.time = Math.random() * 10;
     this.emotes = [];
     this._bubbleTimer = null;
@@ -198,6 +199,11 @@ export class Avatar {
     this.lookPitch = hp || 0;
   }
 
+  /** Reach a hand out to hold your partner's: -1 left, +1 right, 0 none. */
+  setHandHold(side = 0) {
+    this.holdSide = side | 0;
+  }
+
   update(dt) {
     this.time += dt;
     const a = this.anim;
@@ -263,6 +269,12 @@ export class Avatar {
       bodyY = Math.abs(q) * 0.06;
       bodyRY = p * 0.18;
       bodyRZ = p * 0.06;
+    }
+
+    // holding hands: the inner arm reaches out toward your partner
+    if (this.holdSide && a !== 'sleep' && a !== 'sit' && a !== 'dance' && a !== 'bow') {
+      if (this.holdSide < 0) { zl = -0.5; sl = -0.18; }
+      else { zr = 0.5; sr = -0.18; }
     }
 
     const k = Math.min(1, dt * 12);

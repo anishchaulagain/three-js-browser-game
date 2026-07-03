@@ -229,6 +229,33 @@ export function buildHouse(ctx) {
     const faucet = box(0.07, 0.35, 0.07, mat(0x9fa6ad));
     faucet.position.set(cx + 0.3, 1.2, -26.2);
     scene.add(faucet);
+
+    // 🎵 a little boombox on the counter — plays YouTube audio for the house
+    {
+      const rx = cx - 0.05, rz = -28.9, ry = 1.18; // sits on the counter top
+      const body = box(0.42, 0.34, 0.82, mat(0x2b2b33));
+      body.position.set(rx, ry, rz);
+      scene.add(body);
+      for (const sz of [-0.22, 0.22]) {
+        const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 16), mat(0x55555f));
+        cone.rotation.z = Math.PI / 2;
+        cone.position.set(rx - 0.22, ry, rz + sz);
+        scene.add(cone);
+      }
+      const antenna = box(0.03, 0.4, 0.03, mat(0x9aa0a6));
+      antenna.position.set(rx + 0.1, ry + 0.36, rz - 0.3);
+      antenna.rotation.z = 0.3;
+      scene.add(antenna);
+      const ledMat = new THREE.MeshStandardMaterial({ color: 0x88ffcc, emissive: 0x33ff99, emissiveIntensity: 0 });
+      const led = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), ledMat);
+      led.position.set(rx - 0.22, ry + 0.12, rz);
+      scene.add(led);
+      ctx.radioSpot = { x: rx - 0.6, z: rz, mat: ledMat };
+      interactables.push({
+        x: cx - 1.0, z: rz, radius: 1.6,
+        label: 'put on some music 🎵', type: 'radio',
+      });
+    }
   }
 
   // stove

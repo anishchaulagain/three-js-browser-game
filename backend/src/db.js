@@ -43,7 +43,20 @@ function pgConfig(rawUrl = process.env.DATABASE_URL) {
 
 function postgresDriver() {
   const { Pool } = require('pg');
-  const pool = new Pool(pgConfig() || {}); // falls back to standard PG* env vars
+  const pool = new Pool({
+    ...(pgConfig() || {}), // falls back to standard PG* env vars
+    // managed Postgres (Aiven, Render…) drops idle connections — recycle ours
+    // first and keep the TCP alive, so checkouts never hand out dead clients
+    keepAlive: true,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+    max: 5,
+  });
+  // CRITICAL for production: an idle client erroring (server closed the
+  // connection) emits 'error' on the pool — without a listener Node CRASHES
+  pool.on('error', (err) => {
+    console.error('[db] idle connection error (recovered):', err.message);
+  });
 
   const row = (r) => r && {
     id: r.id,
@@ -73,6 +86,22 @@ function postgresDriver() {
           first_login_done     BOOLEAN NOT NULL DEFAULT FALSE,
           created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
         )`);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS app_settings (
+          key   TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        )`);
+    },
+    async getSetting(key) {
+      const r = await pool.query('SELECT value FROM app_settings WHERE key = $1', [key]);
+      return r.rows[0] ? r.rows[0].value : null;
+    },
+    async setSetting(key, value) {
+      await pool.query(
+        `INSERT INTO app_settings (key, value) VALUES ($1, $2)
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+        [key, value]
+      );
     },
     async countUsers() {
       return +(await pool.query('SELECT count(*) FROM users')).rows[0].count;
@@ -121,9 +150,12 @@ function postgresDriver() {
 function memoryDriver() {
   const users = new Map();
   let nextId = 1;
+  const settings = new Map();
   return {
     mode: 'memory',
     async init() {},
+    async getSetting(key) { return settings.get(key) ?? null; },
+    async setSetting(key, value) { settings.set(key, value); },
     async countUsers() { return users.size; },
     async findByUsername(username) {
       return [...users.values()].find((u) => u.username.toLowerCase() === String(username).toLowerCase()) || null;
@@ -156,6 +188,22 @@ const driver = usePostgres ? postgresDriver() : useMemory ? memoryDriver() : nul
 async function init() {
   if (!driver) return;
   await driver.init();
+
+  // Production fix: without JWT_SECRET in the environment (e.g. Render, where
+  // the gitignored .env never ships), a per-boot random secret would log
+  // everyone out on every restart/sleep-wake. Persist one in the DB instead.
+  const { JWT_SECRET_IS_EPHEMERAL } = require('./config');
+  if (JWT_SECRET_IS_EPHEMERAL) {
+    let secret = await driver.getSetting('jwt_secret');
+    if (!secret) {
+      secret = require('crypto').randomBytes(32).toString('hex');
+      await driver.setSetting('jwt_secret', secret);
+      console.log('[auth] generated a JWT secret and stored it in the database');
+    }
+    require('./jwt').setSecret(secret);
+    console.log('[auth] JWT secret loaded from the database — sessions survive restarts');
+  }
+
   if ((await driver.countUsers()) === 0) {
     // no insecure default: without ADMIN_PASSWORD in .env, generate one and
     // print it exactly once — it must be changed on first sign-in anyway

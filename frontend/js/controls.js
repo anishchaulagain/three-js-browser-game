@@ -134,6 +134,7 @@ export class PlayerController {
   }
 
   update(dt) {
+    this.moving = false; // set true below when the player feeds WASD input
     if (this.enabled && this.vehicle) {
       // riding the car: position comes from the seat; WASD belongs to driving
       const sw = this.vehicle.car.seatWorld(this.vehicle.seat);
@@ -165,7 +166,8 @@ export class PlayerController {
           .addScaledVector(right, r);
 
         const crouching = this.keys.KeyC && this.grounded;
-        if (move.lengthSq() > 0 || this.keys.Space) { this.dancing = false; this.bowTimer = 0; }
+        this.moving = move.lengthSq() > 0;
+        if (this.moving || this.keys.Space) { this.dancing = false; this.bowTimer = 0; }
         if (this.bowTimer > 0) this.bowTimer -= dt;
 
         const running = (this.keys.ShiftLeft || this.keys.ShiftRight) && !crouching;

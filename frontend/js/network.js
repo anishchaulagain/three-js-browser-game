@@ -20,6 +20,8 @@ export class Network {
     this.onCarState = null;
     this.onCarSeat = null;
     this.onTheater = null;
+    this.onRadio = null;
+    this.onHands = null;
     this.onChat = null;
     this.onLeft = null;
     this.onFull = null;
@@ -43,6 +45,8 @@ export class Network {
     this.socket.on('gift', (d) => this.onGift && this.onGift(d));
     this.socket.on('car_state', (d) => this.onCarState && this.onCarState(d));
     this.socket.on('theater', (d) => this.onTheater && this.onTheater(d));
+    this.socket.on('radio', (d) => this.onRadio && this.onRadio(d));
+    this.socket.on('hands', (d) => this.onHands && this.onHands(d));
     this.socket.on('car_seat', (d) => this.onCarSeat && this.onCarSeat(d));
     this.socket.on('chat', (d) => this.onChat && this.onChat(d));
     this.socket.on('player_left', (d) => this.onLeft && this.onLeft(d));
@@ -89,6 +93,10 @@ export class Network {
   sendCarSeat(seat) { this.socket.emit('car_seat', seat); }
   /** s = {v: videoId, playing, t seconds} */
   sendTheater(s) { this.socket.emit('theater', s); }
+  /** s = {v: videoId, playing, t seconds} — kitchen radio */
+  sendRadio(s) { this.socket.emit('radio', s); }
+  /** msg = {to: peerId, holding} — hold/release hands */
+  sendHands(msg) { this.socket.emit('hands', msg); }
   /** msg = {to: peerId, e: {n, c}} — encrypted per recipient; plaintext never goes on the wire */
   sendChat(msg) { this.socket.emit('chat', msg); }
 }

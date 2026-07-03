@@ -20,13 +20,17 @@ const publicUser = (u) => ({
 
 const PASSWORD_MIN = 6;
 
+/** Express 4 swallows async rejections — route DB errors to the JSON 500
+    handler instead of crashing/hanging the request (vital in production) */
+const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
 function createAuthRouter() {
   const router = express.Router();
 
   /** whether accounts are enabled at all — the client adapts its boot flow */
   router.get('/mode', (req, res) => res.json({ auth: db.enabled }));
 
-  router.post('/login', async (req, res) => {
+  router.post('/login', wrap(async (req, res) => {
     const { username, password } = req.body || {};
     if (typeof username !== 'string' || typeof password !== 'string') {
       return res.status(400).json({ error: 'username and password required' });
@@ -36,16 +40,16 @@ function createAuthRouter() {
       return res.status(401).json({ error: 'wrong username or password' });
     }
     res.json({ token: sign(user), user: publicUser(user) });
-  });
+  }));
 
   /** who am I (used to resume a stored session) */
-  router.get('/me', requireAuth, async (req, res) => {
+  router.get('/me', requireAuth, wrap(async (req, res) => {
     const user = await db.findById(req.auth.sub);
     if (!user) return res.status(401).json({ error: 'unauthorized' });
     res.json({ user: publicUser(user) });
-  });
+  }));
 
-  router.post('/change-password', requireAuth, async (req, res) => {
+  router.post('/change-password', requireAuth, wrap(async (req, res) => {
     const { currentPassword, newPassword } = req.body || {};
     const user = await db.findById(req.auth.sub);
     if (!user) return res.status(401).json({ error: 'unauthorized' });
@@ -60,10 +64,10 @@ function createAuthRouter() {
       mustChangePassword: false,
     });
     res.json({ user: publicUser(updated) });
-  });
+  }));
 
   /** first-sign-in character setup (also reusable later from the closet) */
-  router.post('/profile', requireAuth, async (req, res) => {
+  router.post('/profile', requireAuth, wrap(async (req, res) => {
     const { displayName, outfit } = req.body || {};
     const user = await db.findById(req.auth.sub);
     if (!user) return res.status(401).json({ error: 'unauthorized' });
@@ -72,7 +76,7 @@ function createAuthRouter() {
     if (outfit !== undefined) fields.outfit = Math.max(0, Math.min(11, outfit | 0));
     const updated = await db.updateUser(user.id, fields);
     res.json({ user: publicUser(updated) });
-  });
+  }));
 
   return router;
 }

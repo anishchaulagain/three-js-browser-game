@@ -1,15 +1,20 @@
 /** JWT helpers — sign/verify tokens and an Express auth middleware. */
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET, JWT_SECRET_IS_EPHEMERAL, TOKEN_TTL } = require('./config');
+const { JWT_SECRET, TOKEN_TTL } = require('./config');
 
-if (JWT_SECRET_IS_EPHEMERAL) {
-  console.warn('[auth] WARNING: no JWT_SECRET in .env — using a random per-boot secret (sessions reset on every restart)');
+// starts from env (or a per-boot random); db.init() swaps in the DB-persisted
+// secret when the environment doesn't provide one, so sessions survive
+// restarts in production even without JWT_SECRET configured
+let secret = JWT_SECRET;
+
+function setSecret(s) {
+  if (typeof s === 'string' && s.length >= 16) secret = s;
 }
 
 function sign(user) {
   return jwt.sign(
     { sub: user.id, username: user.username, role: user.role },
-    JWT_SECRET,
+    secret,
     { expiresIn: TOKEN_TTL }
   );
 }
@@ -17,7 +22,7 @@ function sign(user) {
 /** returns the payload {sub, username, role} or null */
 function verify(token) {
   try {
-    return jwt.verify(token, JWT_SECRET);
+    return jwt.verify(token, secret);
   } catch {
     return null;
   }
@@ -41,4 +46,4 @@ function requireAdmin(req, res, next) {
   });
 }
 
-module.exports = { sign, verify, requireAuth, requireAdmin };
+module.exports = { sign, verify, setSecret, requireAuth, requireAdmin };

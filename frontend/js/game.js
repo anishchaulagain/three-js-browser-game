@@ -5,7 +5,8 @@
  */
 import * as THREE from 'three';
 import { createWorld } from './world/index.js';
-import { heightAt } from './world/terrain.js';
+import { heightAt, LAKE, PONDS, ROADS } from './world/terrain.js';
+import { Ambience } from './audio.js';
 import { Avatar } from './avatar/avatar.js';
 import { PlayerController } from './controls.js';
 import { Network } from './network.js';
@@ -16,6 +17,7 @@ import { interactionHandlers } from './interactions.js';
 import { CHEATS } from './cheats.js';
 import { SecureChannel } from './crypto.js';
 import { Theater } from './theater.js';
+import { Radio } from './radio.js';
 import {
   SPAWNS, STATE_SEND_MS, CAR_SEND_MS, EMOTE_KEYS, NUM_EMOJI, HEART_DISTANCE, KISS_DISTANCE,
   FLOWERS, POCKET_MAX, GIVE_DISTANCE,
@@ -52,12 +54,18 @@ export class Game {
       scene: this.scene, screen: this.world.theaterScreen, net: this.net, ui: this.ui,
       canvas: this.renderer.domElement,
     });
+    this.ambience = new Ambience({
+      water: [{ x: LAKE.x, z: LAKE.z, r: LAKE.r }, ...PONDS.map((p) => ({ x: p.x, z: p.z, r: p.r }))],
+      roads: ROADS,
+      paved: [{ x: 0, z: 70, r: 13 }], // city plaza
+    });
+    this.radio = new Radio({ net: this.net, ui: this.ui, spot: this.world.radioSpot });
     this.minimap = new Minimap(document.getElementById('minimap'), this.world.mapFeatures);
     this.controller = new PlayerController(this.camera, this.renderer.domElement, {
       colliders: this.world.colliders,
       cameraBlockers: this.world.cameraBlockers,
       isTyping: () => this.ui.isTyping(),
-      lockAllowed: () => !this.ui.closetOpen && !this.theater.dialogOpen && !this.theater.browsing,
+      lockAllowed: () => !this.ui.closetOpen && !this.theater.dialogOpen && !this.theater.browsing && !this.radio.dialogOpen,
     });
     // leaving the sofa pauses the movie for both of you
     this.controller.onStandUp = (meta) => {
@@ -74,6 +82,7 @@ export class Game {
     this.selfAvatar = null;
     /** id → {id, role, name, outfit, avatar, target, anim, speed, look, carSeat} */
     this.remotes = new Map();
+    this.holdingWith = null;   // socket id of the partner whose hand you're holding
     this.currentInteractable = null;
     this._lastSent = 0;
     this._lastSentSig = '';
@@ -101,6 +110,7 @@ export class Game {
     // Tower of Love: celebrate reaching the heart beam at the top
     this.world.tower.setOnWin((sec) => {
       const m = Math.floor(sec / 60), s = String(Math.floor(sec % 60)).padStart(2, '0');
+      this.ambience.fanfare();
       this.ui.toast(`🗼 You reached the top in ${m}:${s}! 🏆💕`, 4200);
       this.selfAvatar.emote('🏆');
       this.net.sendEmote('🏆');
@@ -134,6 +144,72 @@ export class Game {
   distanceToPartner() {
     const n = this.nearestRemote();
     return n ? n.dist : Infinity;
+  }
+
+  /* ============ holding hands ============ */
+  _toggleHands() {
+    if (this.holdingWith) { this._releaseHands(); return; }
+    const n = this.nearestRemote();
+    if (!n || n.dist > 2.5) {
+      this.ui.toast('Walk up close to take their hand 🤝', 2200);
+      return;
+    }
+    this.holdingWith = n.remote.id;
+    this.net.sendHands({ to: n.remote.id, holding: true });
+    this.ambience.clasp();
+    this.ui.toast(`💞 Holding hands with ${n.remote.name}`, 2200);
+  }
+
+  _releaseHands(silent = false) {
+    if (!this.holdingWith) return;
+    const id = this.holdingWith;
+    this.holdingWith = null;
+    if (this.selfAvatar) this.selfAvatar.setHandHold(0);
+    const r = this.remotes.get(id);
+    if (r) r.avatar.setHandHold(0);
+    this.net.sendHands({ to: id, holding: false });
+    if (!silent) {
+      this.ambience.release();
+      this.ui.toast('Let go of hands 👋', 1600);
+    }
+  }
+
+  /** which side a target is on relative to a facing: -1 left, +1 right */
+  _sideToward(from, facingRy, to) {
+    const rightX = Math.cos(facingRy), rightZ = -Math.sin(facingRy);
+    return ((to.x - from.x) * rightX + (to.z - from.z) * rightZ) >= 0 ? 1 : -1;
+  }
+
+  /** keep the couple within arm's reach; the idle one is gently led along */
+  _tetherHands(dt) {
+    if (!this.holdingWith) return;
+    const c = this.controller;
+    if (c.seated || this.carSeat || c.dancing || c.bowTimer > 0) { this._releaseHands(true); return; }
+    const r = this.remotes.get(this.holdingWith);
+    if (!r) { this._releaseHands(true); return; } // partner gone
+    const g = r.avatar.group.position, p = c.pos;
+    const COMFY = 1.15, MAX = 1.7;
+    let dx = p.x - g.x, dz = p.z - g.z, d = Math.hypot(dx, dz) || 1e-4;
+
+    // if I'm idle and we've drifted apart, my partner is leading — follow them
+    if (!c.moving && d > COMFY) {
+      const step = Math.min(d - COMFY, 8 * dt);
+      p.x += (-dx / d) * step;
+      p.z += (-dz / d) * step;
+      if (c.grounded) {
+        p.y = heightAt(p.x, p.z);
+        c.speed = step / dt;
+        c.anim = c.speed > 0.2 ? 'walk' : c.anim;
+        c.ry = Math.atan2(-dx, -dz); // face the way I'm being pulled
+      }
+      dx = p.x - g.x; dz = p.z - g.z; d = Math.hypot(dx, dz) || 1e-4;
+    }
+    // never stretch beyond MAX, whoever is moving
+    if (d > MAX) { p.x = g.x + (dx / d) * MAX; p.z = g.z + (dz / d) * MAX; }
+
+    // both avatars reach an inner hand toward each other
+    this.selfAvatar.setHandHold(this._sideToward(p, c.ry, g));
+    r.avatar.setHandHold(this._sideToward(g, r.avatar.group.rotation.y, p));
   }
 
   /* ============ flower pocket ============ */
@@ -189,6 +265,7 @@ export class Game {
     const f = FLOWERS[key];
     this.net.sendGift({ to: n.remote.id, flower: key });
     this.selfAvatar.emote(f.emoji);
+    this.ambience.chime();
     const g = n.remote.avatar.group.position;
     this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 4, this.controller.pos.y);
     this.ui.toast(`You gave ${n.remote.name} a ${f.name} ${f.emoji}`, 2800);
@@ -243,9 +320,11 @@ export class Game {
 
       if (d.carState) this.world.car.snapTo(d.carState); // car is where it was left
       if (d.theaterState) this.theater.apply(d.theaterState, true); // movie mid-play? sync in
+      if (d.radioState) this.radio.apply(d.radioState, true);       // music already on? join it
       for (const p of d.others) this._addRemote(p, true);
 
       this.joined = true;
+      this.ambience.start(); // the join click is a valid audio-unlock gesture
       ui.hideSelect();
       ui.setupChat((text) => this._sendChat(text));
       ui.setupCheat((code) => {
@@ -286,7 +365,15 @@ export class Game {
       const r = this.remotes.get(d.id);
       if (!r) return;
       r.avatar.emote(d.emoji);
-      if (d.emoji === '🏆') ui.toast(`🗼 ${r.name} reached the top of the tower! 🏆`, 3600);
+      if (d.emoji === '🏆') {
+        ui.toast(`🗼 ${r.name} reached the top of the tower! 🏆`, 3600);
+        this.ambience.fanfare();
+      }
+      if (d.emoji === '😘') {
+        const g = r.avatar.group.position;
+        const dist = Math.hypot(g.x - this.controller.pos.x, g.z - this.controller.pos.z);
+        if (dist < KISS_DISTANCE + 1) this.ambience.kiss();
+      }
     };
 
     net.onCarState = (s) => {
@@ -294,6 +381,22 @@ export class Game {
     };
 
     net.onTheater = (s) => this.theater.apply(s, true);
+    net.onRadio = (s) => this.radio.apply(s, true);
+
+    net.onHands = (d) => {
+      const r = this.remotes.get(d.id);
+      if (d.holding) {
+        this.holdingWith = d.id; // mutual — their hand finds yours
+        this.ambience.clasp();
+        if (r) this.ui.toast(`💞 ${r.name} took your hand`, 2200);
+      } else if (this.holdingWith === d.id) {
+        this.holdingWith = null;
+        if (this.selfAvatar) this.selfAvatar.setHandHold(0);
+        if (r) r.avatar.setHandHold(0);
+        this.ambience.release();
+        this.ui.toast(`${r ? r.name : 'They'} let go 👋`, 1600);
+      }
+    };
 
     net.onCarSeat = (d) => {
       const r = this.remotes.get(d.id);
@@ -315,6 +418,7 @@ export class Game {
       const f = FLOWERS[key];
       if (this.pocket.length < POCKET_MAX) this.addToPocket(key);
       r.avatar.emote(f.emoji);
+      this.ambience.chime();
       const g = r.avatar.group.position;
       this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 4, this.controller.pos.y);
       ui.toast(`${r.name} gave you a ${f.name} ${f.emoji}!`, 3200);
@@ -331,11 +435,13 @@ export class Game {
       }
       ui.addChatMessage(d.name, text);
       r.avatar.say(text);
+      this.ambience.pop();
     };
 
     net.onLeft = (d) => {
       const r = this.remotes.get(d.id);
       if (!r) return;
+      if (this.holdingWith === d.id) { this.holdingWith = null; if (this.selfAvatar) this.selfAvatar.setHandHold(0); }
       r.avatar.dispose(this.scene);
       this.remotes.delete(d.id);
       this.secure.removePeer(d.id);
@@ -390,10 +496,14 @@ export class Game {
       if (!this.joined || this.ui.isTyping()) return;
 
       if (e.code === 'KeyE') this._interact();
+      else if (e.code === 'KeyJ') this._toggleHands();
       else if (e.code === 'KeyF') this._giveFlower();
       else if (e.code === 'Backquote') { e.preventDefault(); this.ui.openCheat(); }
       else if (e.code === 'Enter' || e.code === 'KeyT') { e.preventDefault(); this.ui.openChat(); }
       else if (e.code === 'Escape' && this.ui.closetOpen) this.ui.closeCloset();
+      else if (e.code === 'KeyM') {
+        this.ui.toast(this.ambience.toggle() ? '🔊 Sound on' : '🔇 Sound off', 1600);
+      }
       else if (e.code === 'KeyY' && this.controller.seated && this.controller.seated.theater) {
         this.theater.openDialog();
       }
@@ -418,6 +528,7 @@ export class Game {
     if (emoji === '😘' && n && n.dist < KISS_DISTANCE) {
       const g = n.remote.avatar.group.position;
       this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 5, this.controller.pos.y);
+      this.ambience.kiss();
     }
   }
 
@@ -477,6 +588,18 @@ export class Game {
         r.avatar.setLook(r.look.hy, r.look.hp);
         r.avatar.setAnim(r.anim, r.speed);
         r.avatar.update(dt);
+
+        // their footsteps too — especially telling when you walk hand in hand
+        if ((r.anim === 'walk' || r.anim === 'run') && r.speed > 0.4) {
+          r.stride = (r.stride ?? 1.6) + r.speed * dt;
+          if (r.stride >= 1.7) {
+            r.stride = 0;
+            const dist = Math.hypot(g.position.x - selfState.x, g.position.z - selfState.z);
+            this.ambience.stepFor(g.position.x, g.position.z, dist, this.world.isInsideHouse(g.position));
+          }
+        } else {
+          r.stride = 1.6;
+        }
       }
     }
 
@@ -496,6 +619,7 @@ export class Game {
         (this.controller.pos.y + g.y) / 2 + 2.2,
         (this.controller.pos.z + g.z) / 2
       );
+      this.ambience.twinkle();
     }
 
     // sleeping next to someone sleeping → sweet dreams
@@ -524,6 +648,11 @@ export class Game {
         : 'Press <b>E</b> or move to get up');
       return;
     }
+    if (this.holdingWith) {
+      this.currentInteractable = null;
+      this.ui.showPrompt('💞 holding hands · <b>J</b> — let go');
+      return;
+    }
     let best = null, bestD = Infinity;
     for (const it of this.world.interactables) {
       if (it.available && !it.available()) continue; // e.g. a flower that's still regrowing
@@ -533,7 +662,11 @@ export class Game {
     }
     this.currentInteractable = best;
     if (best) this.ui.showPrompt(`Press <b>E</b> to ${best.label}`);
-    else this.ui.hidePrompt();
+    else {
+      const n = this.nearestRemote();
+      if (n && n.dist < 2.5) this.ui.showPrompt('🤝 <b>J</b> — hold hands');
+      else this.ui.hidePrompt();
+    }
   }
 
   _animate() {
@@ -568,7 +701,9 @@ export class Game {
     }
 
     /* self */
-    const state = this.controller.update(dt);
+    this.controller.update(dt);
+    this._tetherHands(dt); // hold-hands constraint may nudge position/anim
+    const state = this.controller.state();
     this.selfAvatar.group.position.set(state.x, state.y, state.z);
     this.selfAvatar.group.rotation.y = state.ry;
     this.selfAvatar.setLook(state.hy, state.hp);
@@ -594,6 +729,26 @@ export class Game {
 
     this._night = this.world.update(t, dt, this.controller.pos, this.net.worldStart ? this.net.elapsed() : 0);
     this.theater.update(dt, this.controller.pos);
+    this.radio.update(dt, this.controller.pos);
+    if (this.world.radioSpot) { // the boombox LED glows while music plays
+      this.world.radioSpot.mat.emissiveIntensity = this.radio.playing
+        ? 0.6 + 0.4 * Math.sin(performance.now() / 180) : 0;
+    }
+    {
+      const car = this.world.car.state;
+      const p = this.controller.pos;
+      this.ambience.update(dt, {
+        x: p.x, y: p.y, z: p.z,
+        night: this._night,
+        speed: this.controller.speed,
+        grounded: this.controller.grounded,
+        seated: !!this.controller.seated,
+        inHouse: this.world.isInsideHouse(p),
+        inCar: !!this.carSeat,
+        carV: car.v,
+        carDist: Math.hypot(p.x - car.x, p.z - car.z),
+      });
+    }
     this._updateClockUI(t);
 
     this.minimap.update(dt,

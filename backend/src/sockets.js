@@ -9,6 +9,8 @@ function registerSockets(io, players) {
   let carState = null;
   /** shared home-theater state: {v, playing, t, at} — late joiners sync right in */
   let theaterState = null;
+  /** shared kitchen-radio state: {v, playing, t, at} */
+  let radioState = null;
 
   const broadcastRoles = () =>
     io.emit('roles', { taken: players.takenRoles(), count: players.size });
@@ -86,6 +88,7 @@ function registerSockets(io, players) {
         others: players.othersOf(socket.id),
         carState,
         theaterState,
+        radioState,
         ...timeInfo(),
       });
       socket.broadcast.emit('player_joined', player);
@@ -162,11 +165,32 @@ function registerSockets(io, players) {
       socket.broadcast.emit('theater', theaterState);
     });
 
+    socket.on('radio', (s) => {
+      // kitchen radio sync: {v: 11-char id, playing, t seconds}
+      const p = players.get(socket.id);
+      if (!p || !s || typeof s.v !== 'string' || !/^[\w-]{11}$/.test(s.v)) return;
+      radioState = {
+        v: s.v,
+        playing: !!s.playing,
+        t: Math.max(0, Math.min(86400, +s.t || 0)),
+        at: Date.now(),
+      };
+      socket.broadcast.emit('radio', radioState);
+    });
+
     socket.on('car_seat', (seat) => {
       const p = players.get(socket.id);
       if (!p) return;
       p.carSeat = seat === 'driver' || seat === 'passenger' ? seat : null;
       socket.broadcast.emit('car_seat', { id: socket.id, seat: p.carSeat });
+    });
+
+    socket.on('hands', (msg) => {
+      // hold/let-go hands: {to: socketId, holding} — only the partner is told
+      if (!players.has(socket.id) || !msg) return;
+      const target = typeof msg.to === 'string' && players.has(msg.to) && io.sockets.sockets.get(msg.to);
+      if (!target) return;
+      target.emit('hands', { id: socket.id, holding: !!msg.holding });
     });
 
     socket.on('chat', (msg) => {
