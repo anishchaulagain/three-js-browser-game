@@ -110,6 +110,7 @@ export class Game {
     // Tower of Love: celebrate reaching the heart beam at the top
     this.world.tower.setOnWin((sec) => {
       const m = Math.floor(sec / 60), s = String(Math.floor(sec % 60)).padStart(2, '0');
+      this.ambience.fanfare();
       this.ui.toast(`🗼 You reached the top in ${m}:${s}! 🏆💕`, 4200);
       this.selfAvatar.emote('🏆');
       this.net.sendEmote('🏆');
@@ -155,6 +156,7 @@ export class Game {
     }
     this.holdingWith = n.remote.id;
     this.net.sendHands({ to: n.remote.id, holding: true });
+    this.ambience.clasp();
     this.ui.toast(`💞 Holding hands with ${n.remote.name}`, 2200);
   }
 
@@ -166,7 +168,10 @@ export class Game {
     const r = this.remotes.get(id);
     if (r) r.avatar.setHandHold(0);
     this.net.sendHands({ to: id, holding: false });
-    if (!silent) this.ui.toast('Let go of hands 👋', 1600);
+    if (!silent) {
+      this.ambience.release();
+      this.ui.toast('Let go of hands 👋', 1600);
+    }
   }
 
   /** which side a target is on relative to a facing: -1 left, +1 right */
@@ -260,6 +265,7 @@ export class Game {
     const f = FLOWERS[key];
     this.net.sendGift({ to: n.remote.id, flower: key });
     this.selfAvatar.emote(f.emoji);
+    this.ambience.chime();
     const g = n.remote.avatar.group.position;
     this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 4, this.controller.pos.y);
     this.ui.toast(`You gave ${n.remote.name} a ${f.name} ${f.emoji}`, 2800);
@@ -359,7 +365,15 @@ export class Game {
       const r = this.remotes.get(d.id);
       if (!r) return;
       r.avatar.emote(d.emoji);
-      if (d.emoji === '🏆') ui.toast(`🗼 ${r.name} reached the top of the tower! 🏆`, 3600);
+      if (d.emoji === '🏆') {
+        ui.toast(`🗼 ${r.name} reached the top of the tower! 🏆`, 3600);
+        this.ambience.fanfare();
+      }
+      if (d.emoji === '😘') {
+        const g = r.avatar.group.position;
+        const dist = Math.hypot(g.x - this.controller.pos.x, g.z - this.controller.pos.z);
+        if (dist < KISS_DISTANCE + 1) this.ambience.kiss();
+      }
     };
 
     net.onCarState = (s) => {
@@ -373,11 +387,13 @@ export class Game {
       const r = this.remotes.get(d.id);
       if (d.holding) {
         this.holdingWith = d.id; // mutual — their hand finds yours
+        this.ambience.clasp();
         if (r) this.ui.toast(`💞 ${r.name} took your hand`, 2200);
       } else if (this.holdingWith === d.id) {
         this.holdingWith = null;
         if (this.selfAvatar) this.selfAvatar.setHandHold(0);
         if (r) r.avatar.setHandHold(0);
+        this.ambience.release();
         this.ui.toast(`${r ? r.name : 'They'} let go 👋`, 1600);
       }
     };
@@ -402,6 +418,7 @@ export class Game {
       const f = FLOWERS[key];
       if (this.pocket.length < POCKET_MAX) this.addToPocket(key);
       r.avatar.emote(f.emoji);
+      this.ambience.chime();
       const g = r.avatar.group.position;
       this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 4, this.controller.pos.y);
       ui.toast(`${r.name} gave you a ${f.name} ${f.emoji}!`, 3200);
@@ -418,6 +435,7 @@ export class Game {
       }
       ui.addChatMessage(d.name, text);
       r.avatar.say(text);
+      this.ambience.pop();
     };
 
     net.onLeft = (d) => {
@@ -510,6 +528,7 @@ export class Game {
     if (emoji === '😘' && n && n.dist < KISS_DISTANCE) {
       const g = n.remote.avatar.group.position;
       this.hearts.burst(this.controller.pos.x, this.controller.pos.z, g.x, g.z, 5, this.controller.pos.y);
+      this.ambience.kiss();
     }
   }
 
@@ -569,6 +588,18 @@ export class Game {
         r.avatar.setLook(r.look.hy, r.look.hp);
         r.avatar.setAnim(r.anim, r.speed);
         r.avatar.update(dt);
+
+        // their footsteps too — especially telling when you walk hand in hand
+        if ((r.anim === 'walk' || r.anim === 'run') && r.speed > 0.4) {
+          r.stride = (r.stride ?? 1.6) + r.speed * dt;
+          if (r.stride >= 1.7) {
+            r.stride = 0;
+            const dist = Math.hypot(g.position.x - selfState.x, g.position.z - selfState.z);
+            this.ambience.stepFor(g.position.x, g.position.z, dist, this.world.isInsideHouse(g.position));
+          }
+        } else {
+          r.stride = 1.6;
+        }
       }
     }
 
@@ -588,6 +619,7 @@ export class Game {
         (this.controller.pos.y + g.y) / 2 + 2.2,
         (this.controller.pos.z + g.z) / 2
       );
+      this.ambience.twinkle();
     }
 
     // sleeping next to someone sleeping → sweet dreams

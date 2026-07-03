@@ -196,7 +196,7 @@ export class Ambience {
     }
   }
 
-  _footstep(surface) {
+  _footstep(surface, scale = 1) {
     const ctx = this.ctx, t0 = ctx.currentTime;
     const src = ctx.createBufferSource(); src.buffer = this.whiteBuf;
     const f = ctx.createBiquadFilter();
@@ -207,7 +207,7 @@ export class Ambience {
     else { f.type = 'lowpass'; f.frequency.value = 1500; peak = 0.085; } // grass
     // alternate feet for a touch of variation
     this._stepFoot ^= 1;
-    peak *= this._stepFoot ? 1 : 0.85;
+    peak *= (this._stepFoot ? 1 : 0.85) * scale;
     g.gain.setValueAtTime(0, t0);
     g.gain.linearRampToValueAtTime(peak, t0 + 0.004);
     g.gain.exponentialRampToValueAtTime(0.0008, t0 + dur);
@@ -218,12 +218,85 @@ export class Ambience {
       const o = ctx.createOscillator(); o.type = 'sine';
       const kg = ctx.createGain();
       o.frequency.setValueAtTime(150, t0);
-      kg.gain.setValueAtTime(0.05, t0);
+      kg.gain.setValueAtTime(0.05 * scale, t0);
       kg.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.06);
       o.connect(kg).connect(this.master);
       o.start(t0); o.stop(t0 + 0.07);
     }
   }
+
+  _ready() {
+    return this.ctx && this.ctx.state === 'running' && this.enabled;
+  }
+
+  /** another player's footstep at (x,z), heard from `dist` metres away */
+  stepFor(x, z, dist, inHouse) {
+    if (!this._ready()) return;
+    const scale = distGain(dist, 2, 18) * 0.8;
+    if (scale > 0.03) this._footstep(this._surfaceAt(x, z, inHouse), scale);
+  }
+
+  /** a soft melodic dyad/arpeggio — shared shape for the romantic cues */
+  _notes(freqs, { gap = 0.07, peak = 0.07, dur = 0.3, type = 'sine', lp = 2400 } = {}) {
+    if (!this._ready()) return;
+    const ctx = this.ctx, t0 = ctx.currentTime;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = lp;
+    f.connect(this.master);
+    freqs.forEach((freq, i) => {
+      const s = t0 + i * gap;
+      const o = ctx.createOscillator(); o.type = type;
+      const g = ctx.createGain();
+      o.frequency.setValueAtTime(freq, s);
+      g.gain.setValueAtTime(0, s);
+      g.gain.linearRampToValueAtTime(peak, s + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0008, s + dur);
+      o.connect(g).connect(f);
+      o.start(s); o.stop(s + dur + 0.05);
+    });
+  }
+
+  /** hands clasp — a warm rising third */
+  clasp() { this._notes([392, 494], { gap: 0.09, peak: 0.06, dur: 0.4, lp: 1800 }); }
+
+  /** hands let go — a single settling note */
+  release() { this._notes([330], { peak: 0.045, dur: 0.35, lp: 1500 }); }
+
+  /** a kiss — tiny lip pop with a bright blip */
+  kiss() {
+    if (!this._ready()) return;
+    const ctx = this.ctx, t0 = ctx.currentTime;
+    const src = ctx.createBufferSource(); src.buffer = this.whiteBuf;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 2.5;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.11, t0);
+    g.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.05);
+    src.connect(bp).connect(g).connect(this.master);
+    src.start(t0, Math.random() * 0.5, 0.06);
+    const o = ctx.createOscillator(); o.type = 'sine';
+    const og = ctx.createGain();
+    o.frequency.setValueAtTime(500, t0 + 0.02);
+    o.frequency.exponentialRampToValueAtTime(1050, t0 + 0.09);
+    og.gain.setValueAtTime(0.05, t0 + 0.02);
+    og.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.12);
+    o.connect(og).connect(this.master);
+    o.start(t0 + 0.02); o.stop(t0 + 0.14);
+  }
+
+  /** a little gift sparkle — three ascending chime notes */
+  chime() { this._notes([880, 1109, 1319], { gap: 0.06, peak: 0.05, dur: 0.35, type: 'triangle', lp: 4000 }); }
+
+  /** a chat bubble arriving */
+  pop() { this._notes([620], { peak: 0.04, dur: 0.12, lp: 2000 }); }
+
+  /** the faintest twinkle when ambient hearts float up */
+  twinkle() {
+    this._notes([1760 + Math.random() * 500], { peak: 0.018, dur: 0.25, type: 'triangle', lp: 5000 });
+  }
+
+  /** a small victory flourish (tower top, milestones) */
+  fanfare() { this._notes([523, 659, 784, 1047], { gap: 0.11, peak: 0.06, dur: 0.5, type: 'triangle', lp: 3000 }); }
 
   _surfaceAt(x, z, inHouse) {
     if (inHouse) return 'wood';
